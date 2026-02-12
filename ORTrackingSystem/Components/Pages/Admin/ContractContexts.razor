@@ -1,0 +1,189 @@
+@page "/admin/contract-contexts"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@using ORTrackingSystem.Data
+@using ORTrackingSystem.Models
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.ComponentModel.DataAnnotations
+@attribute [Authorize(Policy = "AdminOnly")]
+@rendermode InteractiveServer
+
+@inject ApplicationDbContext DbContext
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Contract Contexts</PageTitle>
+
+<h1>Contract Contexts</h1>
+
+<div class="mb-3">
+    <button class="btn btn-primary" @onclick="ShowCreateForm">
+        <span class="bi bi-plus-circle"></span> Create New Contract Context
+    </button>
+</div>
+
+@if (ShowForm && EditingContext != null)
+{
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3>@(EditingContext.Id > 0 ? "Edit" : "Create") Contract Context</h3>
+        </div>
+        <div class="card-body">
+            <EditForm Model="EditingContext" OnValidSubmit="SaveContractContext" FormName="contractContextForm">
+                <DataAnnotationsValidator />
+                <ValidationSummary class="text-danger" />
+                
+                <div class="mb-3">
+                    <label class="form-label">Contract Name</label>
+                    <InputText @bind-Value="EditingContext.ContractName" class="form-control" />
+                    <ValidationMessage For="() => EditingContext!.ContractName" />
+                </div>
+                
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-success">Save</button>
+                    <button type="button" class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(StatusMessage))
+{
+    <div class="alert @StatusClass" role="alert">
+        @StatusMessage
+    </div>
+}
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Contract Name</th>
+            <th>Created Date</th>
+            <th>Created By</th>
+            <th>ORs Count</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var context in ContractContextsList)
+        {
+            <tr>
+                <td>@context.Id</td>
+                <td>@context.ContractName</td>
+                <td>@context.CreatedDate.ToString("yyyy-MM-dd")</td>
+                <td>@context.CreatedByUserId</td>
+                <td>@context.ORs.Count</td>
+                <td>
+                    <button class="btn btn-sm btn-primary" @onclick="() => EditContractContext(context)">Edit</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private List<ContractContext> ContractContextsList = new();
+    private ContractContextFormModel? EditingContext;
+    private bool ShowForm = false;
+    private string StatusMessage = "";
+    private string StatusClass = "";
+    private string? CurrentUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        CurrentUserId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        
+        await LoadContractContexts();
+    }
+
+    private async Task LoadContractContexts()
+    {
+        ContractContextsList = await DbContext.ContractContexts
+            .Include(c => c.ORs)
+            .OrderByDescending(c => c.CreatedDate)
+            .ToListAsync();
+    }
+
+    private void ShowCreateForm()
+    {
+        EditingContext = new ContractContextFormModel();
+        ShowForm = true;
+        StatusMessage = "";
+    }
+
+    private void EditContractContext(ContractContext context)
+    {
+        EditingContext = new ContractContextFormModel
+        {
+            Id = context.Id,
+            ContractName = context.ContractName
+        };
+        ShowForm = true;
+        StatusMessage = "";
+    }
+
+    private void CancelEdit()
+    {
+        ShowForm = false;
+        EditingContext = null;
+        StatusMessage = "";
+    }
+
+    private async Task SaveContractContext()
+    {
+        if (EditingContext == null) return;
+        
+        try
+        {
+            if (EditingContext.Id == 0)
+            {
+                // Create new
+                var newContext = new ContractContext
+                {
+                    ContractName = EditingContext.ContractName,
+                    CreatedDate = DateTime.UtcNow,
+                    CreatedByUserId = CurrentUserId ?? "unknown"
+                };
+                DbContext.ContractContexts.Add(newContext);
+            }
+            else
+            {
+                // Update existing
+                var existingContext = await DbContext.ContractContexts.FindAsync(EditingContext.Id);
+                if (existingContext != null)
+                {
+                    existingContext.ContractName = EditingContext.ContractName;
+                }
+            }
+
+            await DbContext.SaveChangesAsync();
+            
+            StatusMessage = EditingContext.Id == 0 
+                ? "Contract Context created successfully."
+                : "Contract Context updated successfully.";
+            StatusClass = "alert-success";
+            
+            ShowForm = false;
+            EditingContext = null;
+            await LoadContractContexts();
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error saving Contract Context: {ex.Message}";
+            StatusClass = "alert-danger";
+        }
+    }
+
+    public class ContractContextFormModel
+    {
+        public int Id { get; set; }
+
+        [Required]
+        [MaxLength(200)]
+        public string ContractName { get; set; } = string.Empty;
+    }
+}
