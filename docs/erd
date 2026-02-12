@@ -1,0 +1,27 @@
+AspNetUsers
+   |
+   | 1..*
+   v
+ContractContexts
+   |
+   | 1..*
+   v
+ORs (OPS / BS separate OR numbers)
+   |
+   | 1..*
+   v
+LM_Requests
+   |
+   | M..N
+   v
+Invoices
+   |
+   | 2 attachments required
+   v
+InvoiceAttachments
+
+StationeryInvoices
+   |
+   | 2 attachments required
+   v
+StationeryAttachments
