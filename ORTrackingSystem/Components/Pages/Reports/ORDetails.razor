@@ -332,7 +332,7 @@ else
     {
         if (orDetails == null) return;
         var fileName = $"report-lm-requests-{orDetails.ORNumber}-{DateTime.Now:yyyyMMdd-HHmmss}.csv";
-        var csvData = ExportService.ExportLMRequestsToCsv(orDetails.LMRequests, orDetails.ORNumber);
+        var csvData = ExportService.ExportLMRequestsToCsv(orDetails.LMRequests);
         await DownloadFile(fileName, csvData, "text/csv");
     }
     
@@ -340,7 +340,7 @@ else
     {
         if (orDetails == null) return;
         var fileName = $"report-lm-requests-{orDetails.ORNumber}-{DateTime.Now:yyyyMMdd-HHmmss}.xlsx";
-        var excelData = ExportService.ExportLMRequestsToExcel(orDetails.LMRequests, orDetails.ORNumber);
+        var excelData = ExportService.ExportLMRequestsToExcel(orDetails.LMRequests);
         await DownloadFile(fileName, excelData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     }
     
@@ -348,7 +348,7 @@ else
     {
         if (orDetails == null) return;
         var fileName = $"report-invoices-{orDetails.ORNumber}-{DateTime.Now:yyyyMMdd-HHmmss}.csv";
-        var csvData = ExportService.ExportInvoicesToCsv(orDetails.Invoices, orDetails.ORNumber);
+        var csvData = ExportService.ExportInvoicesToCsv(orDetails.Invoices);
         await DownloadFile(fileName, csvData, "text/csv");
     }
     
@@ -356,7 +356,7 @@ else
     {
         if (orDetails == null) return;
         var fileName = $"report-invoices-{orDetails.ORNumber}-{DateTime.Now:yyyyMMdd-HHmmss}.xlsx";
-        var excelData = ExportService.ExportInvoicesToExcel(orDetails.Invoices, orDetails.ORNumber);
+        var excelData = ExportService.ExportInvoicesToExcel(orDetails.Invoices);
         await DownloadFile(fileName, excelData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     }
     

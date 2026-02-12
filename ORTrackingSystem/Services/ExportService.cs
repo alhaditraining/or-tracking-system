@@ -6,12 +6,25 @@ namespace ORTrackingSystem.Services;
 
 public class ExportService
 {
+    private byte[] AddBomToCsv(string csvContent)
+    {
+        var preamble = Encoding.UTF8.GetPreamble();
+        var csvBytes = Encoding.UTF8.GetBytes(csvContent);
+        var result = new byte[preamble.Length + csvBytes.Length];
+        Buffer.BlockCopy(preamble, 0, result, 0, preamble.Length);
+        Buffer.BlockCopy(csvBytes, 0, result, preamble.Length, csvBytes.Length);
+        return result;
+    }
+    
+    private void StyleHeaderRow(IXLRow headerRow)
+    {
+        headerRow.Style.Font.Bold = true;
+        headerRow.Style.Fill.BackgroundColor = XLColor.LightBlue;
+    }
+    
     public byte[] ExportORReportsToCsv(List<ORReportRow> data)
     {
         var csv = new StringBuilder();
-        
-        // Add UTF-8 BOM
-        var preamble = Encoding.UTF8.GetPreamble();
         
         // Header
         csv.AppendLine("OR Number,Contract Name,Budget Type,Status,Total Value,Invoiced Total,Remaining,Created Date");
@@ -22,20 +35,12 @@ public class ExportService
             csv.AppendLine($"\"{row.ORNumber}\",\"{row.ContractName}\",\"{row.BudgetType}\",\"{row.Status}\",{row.TotalValue},{row.InvoicedTotal},{row.Remaining},\"{row.CreatedDate:yyyy-MM-dd}\"");
         }
         
-        var csvBytes = Encoding.UTF8.GetBytes(csv.ToString());
-        var result = new byte[preamble.Length + csvBytes.Length];
-        Buffer.BlockCopy(preamble, 0, result, 0, preamble.Length);
-        Buffer.BlockCopy(csvBytes, 0, result, preamble.Length, csvBytes.Length);
-        
-        return result;
+        return AddBomToCsv(csv.ToString());
     }
     
     public byte[] ExportInvoiceReportsToCsv(List<InvoiceReportRow> data)
     {
         var csv = new StringBuilder();
-        
-        // Add UTF-8 BOM
-        var preamble = Encoding.UTF8.GetPreamble();
         
         // Header
         csv.AppendLine("OR Number,Contract Name,Budget Type,Invoice Number,Amount,Paid,Paid Date,Created Date");
@@ -48,20 +53,12 @@ public class ExportService
             csv.AppendLine($"\"{row.ORNumber}\",\"{row.ContractName}\",\"{row.BudgetType}\",\"{row.InvoiceNumber}\",{row.Amount},\"{paidStatus}\",\"{paidDate}\",\"{row.CreatedDate:yyyy-MM-dd}\"");
         }
         
-        var csvBytes = Encoding.UTF8.GetBytes(csv.ToString());
-        var result = new byte[preamble.Length + csvBytes.Length];
-        Buffer.BlockCopy(preamble, 0, result, 0, preamble.Length);
-        Buffer.BlockCopy(csvBytes, 0, result, preamble.Length, csvBytes.Length);
-        
-        return result;
+        return AddBomToCsv(csv.ToString());
     }
     
     public byte[] ExportStationeryReportsToCsv(List<StationeryInvoiceReportRow> data)
     {
         var csv = new StringBuilder();
-        
-        // Add UTF-8 BOM
-        var preamble = Encoding.UTF8.GetPreamble();
         
         // Header
         csv.AppendLine("Invoice Number,Amount,Paid,Paid Date,Created Date");
@@ -74,20 +71,12 @@ public class ExportService
             csv.AppendLine($"\"{row.InvoiceNumber}\",{row.Amount},\"{paidStatus}\",\"{paidDate}\",\"{row.CreatedDate:yyyy-MM-dd}\"");
         }
         
-        var csvBytes = Encoding.UTF8.GetBytes(csv.ToString());
-        var result = new byte[preamble.Length + csvBytes.Length];
-        Buffer.BlockCopy(preamble, 0, result, 0, preamble.Length);
-        Buffer.BlockCopy(csvBytes, 0, result, preamble.Length, csvBytes.Length);
-        
-        return result;
+        return AddBomToCsv(csv.ToString());
     }
     
-    public byte[] ExportLMRequestsToCsv(List<LMRequestRow> data, string orNumber)
+    public byte[] ExportLMRequestsToCsv(List<LMRequestRow> data)
     {
         var csv = new StringBuilder();
-        
-        // Add UTF-8 BOM
-        var preamble = Encoding.UTF8.GetPreamble();
         
         // Header
         csv.AppendLine("Request Number,Amount,Completed,Cancelled,Created Date");
@@ -100,20 +89,12 @@ public class ExportService
             csv.AppendLine($"\"{row.RequestNumber}\",{row.Amount},\"{completedStatus}\",\"{cancelledStatus}\",\"{row.CreatedDate:yyyy-MM-dd}\"");
         }
         
-        var csvBytes = Encoding.UTF8.GetBytes(csv.ToString());
-        var result = new byte[preamble.Length + csvBytes.Length];
-        Buffer.BlockCopy(preamble, 0, result, 0, preamble.Length);
-        Buffer.BlockCopy(csvBytes, 0, result, preamble.Length, csvBytes.Length);
-        
-        return result;
+        return AddBomToCsv(csv.ToString());
     }
     
-    public byte[] ExportInvoicesToCsv(List<InvoiceRow> data, string orNumber)
+    public byte[] ExportInvoicesToCsv(List<InvoiceRow> data)
     {
         var csv = new StringBuilder();
-        
-        // Add UTF-8 BOM
-        var preamble = Encoding.UTF8.GetPreamble();
         
         // Header
         csv.AppendLine("Invoice Number,Amount,Paid,Paid Date,Created Date,Delivery Notes,Invoice Images");
@@ -126,12 +107,7 @@ public class ExportService
             csv.AppendLine($"\"{row.InvoiceNumber}\",{row.Amount},\"{paidStatus}\",\"{paidDate}\",\"{row.CreatedDate:yyyy-MM-dd}\",{row.DeliveryNoteCount},{row.InvoiceImageCount}");
         }
         
-        var csvBytes = Encoding.UTF8.GetBytes(csv.ToString());
-        var result = new byte[preamble.Length + csvBytes.Length];
-        Buffer.BlockCopy(preamble, 0, result, 0, preamble.Length);
-        Buffer.BlockCopy(csvBytes, 0, result, preamble.Length, csvBytes.Length);
-        
-        return result;
+        return AddBomToCsv(csv.ToString());
     }
     
     // Excel exports
@@ -151,9 +127,7 @@ public class ExportService
         worksheet.Cell(1, 8).Value = "Created Date";
         
         // Style header
-        var headerRow = worksheet.Row(1);
-        headerRow.Style.Font.Bold = true;
-        headerRow.Style.Fill.BackgroundColor = XLColor.LightBlue;
+        StyleHeaderRow(worksheet.Row(1));
         
         // Data
         for (int i = 0; i < data.Count; i++)
@@ -195,9 +169,7 @@ public class ExportService
         worksheet.Cell(1, 8).Value = "Created Date";
         
         // Style header
-        var headerRow = worksheet.Row(1);
-        headerRow.Style.Font.Bold = true;
-        headerRow.Style.Fill.BackgroundColor = XLColor.LightBlue;
+        StyleHeaderRow(worksheet.Row(1));
         
         // Data
         for (int i = 0; i < data.Count; i++)
@@ -236,9 +208,7 @@ public class ExportService
         worksheet.Cell(1, 5).Value = "Created Date";
         
         // Style header
-        var headerRow = worksheet.Row(1);
-        headerRow.Style.Font.Bold = true;
-        headerRow.Style.Fill.BackgroundColor = XLColor.LightBlue;
+        StyleHeaderRow(worksheet.Row(1));
         
         // Data
         for (int i = 0; i < data.Count; i++)
@@ -261,7 +231,7 @@ public class ExportService
         return stream.ToArray();
     }
     
-    public byte[] ExportLMRequestsToExcel(List<LMRequestRow> data, string orNumber)
+    public byte[] ExportLMRequestsToExcel(List<LMRequestRow> data)
     {
         using var workbook = new XLWorkbook();
         var worksheet = workbook.Worksheets.Add("LM Requests");
@@ -274,9 +244,7 @@ public class ExportService
         worksheet.Cell(1, 5).Value = "Created Date";
         
         // Style header
-        var headerRow = worksheet.Row(1);
-        headerRow.Style.Font.Bold = true;
-        headerRow.Style.Fill.BackgroundColor = XLColor.LightBlue;
+        StyleHeaderRow(worksheet.Row(1));
         
         // Data
         for (int i = 0; i < data.Count; i++)
@@ -299,7 +267,7 @@ public class ExportService
         return stream.ToArray();
     }
     
-    public byte[] ExportInvoicesToExcel(List<InvoiceRow> data, string orNumber)
+    public byte[] ExportInvoicesToExcel(List<InvoiceRow> data)
     {
         using var workbook = new XLWorkbook();
         var worksheet = workbook.Worksheets.Add("Invoices");
@@ -314,9 +282,7 @@ public class ExportService
         worksheet.Cell(1, 7).Value = "Invoice Images";
         
         // Style header
-        var headerRow = worksheet.Row(1);
-        headerRow.Style.Font.Bold = true;
-        headerRow.Style.Fill.BackgroundColor = XLColor.LightBlue;
+        StyleHeaderRow(worksheet.Row(1));
         
         // Data
         for (int i = 0; i < data.Count; i++)
