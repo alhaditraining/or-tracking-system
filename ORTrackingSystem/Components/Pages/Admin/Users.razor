@@ -1,0 +1,183 @@
+@page "/admin/users"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using ORTrackingSystem.Data
+@attribute [Authorize(Policy = "AdminOnly")]
+@rendermode InteractiveServer
+
+@inject UserManager<ApplicationUser> UserManager
+@inject RoleManager<IdentityRole> RoleManager
+
+<PageTitle>User Management</PageTitle>
+
+<h1>User Management</h1>
+
+<div class="row">
+    <div class="col-md-12">
+        <h3>Create New User</h3>
+        <EditForm Model="NewUser" OnValidSubmit="CreateUser" FormName="createUser">
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" />
+            
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label class="form-label">Email</label>
+                    <InputText @bind-Value="NewUser.Email" class="form-control" />
+                    <ValidationMessage For="() => NewUser.Email" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Password</label>
+                    <InputText type="password" @bind-Value="NewUser.Password" class="form-control" />
+                    <ValidationMessage For="() => NewUser.Password" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Role</label>
+                    <InputSelect @bind-Value="NewUser.Role" class="form-control">
+                        <option value="Admin">Admin</option>
+                        <option value="Viewer">Viewer</option>
+                    </InputSelect>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">&nbsp;</label>
+                    <button type="submit" class="btn btn-primary d-block w-100">Create User</button>
+                </div>
+            </div>
+        </EditForm>
+        
+        @if (!string.IsNullOrEmpty(StatusMessage))
+        {
+            <div class="alert @StatusClass" role="alert">
+                @StatusMessage
+            </div>
+        }
+    </div>
+</div>
+
+<hr />
+
+<div class="row">
+    <div class="col-md-12">
+        <h3>Existing Users</h3>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Email</th>
+                    <th>Roles</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var user in UsersList)
+                {
+                    var roles = UserRoles.ContainsKey(user.Id) ? string.Join(", ", UserRoles[user.Id]) : "";
+                    <tr>
+                        <td>@user.Email</td>
+                        <td>@roles</td>
+                        <td>@(user.LockoutEnd.HasValue && user.LockoutEnd > DateTimeOffset.Now ? "Deactivated" : "Active")</td>
+                        <td>
+                            @if (user.LockoutEnd.HasValue && user.LockoutEnd > DateTimeOffset.Now)
+                            {
+                                <button class="btn btn-sm btn-success" @onclick="() => ActivateUser(user.Id)">Activate</button>
+                            }
+                            else
+                            {
+                                <button class="btn btn-sm btn-warning" @onclick="() => DeactivateUser(user.Id)">Deactivate</button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    private List<ApplicationUser> UsersList = new();
+    private Dictionary<string, List<string>> UserRoles = new();
+    private string StatusMessage = "";
+    private string StatusClass = "";
+
+    private CreateUserModel NewUser = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsers();
+    }
+
+    private async Task LoadUsers()
+    {
+        UsersList = UserManager.Users.ToList();
+        UserRoles.Clear();
+        
+        foreach (var user in UsersList)
+        {
+            var roles = await UserManager.GetRolesAsync(user);
+            UserRoles[user.Id] = roles.ToList();
+        }
+    }
+
+    private async Task CreateUser()
+    {
+        var user = new ApplicationUser
+        {
+            UserName = NewUser.Email,
+            Email = NewUser.Email,
+            EmailConfirmed = true
+        };
+
+        var result = await UserManager.CreateAsync(user, NewUser.Password);
+        
+        if (result.Succeeded)
+        {
+            await UserManager.AddToRoleAsync(user, NewUser.Role);
+            StatusMessage = $"User {NewUser.Email} created successfully.";
+            StatusClass = "alert-success";
+            NewUser = new CreateUserModel(); // Reset form
+            await LoadUsers();
+        }
+        else
+        {
+            StatusMessage = $"Error creating user: {string.Join(", ", result.Errors.Select(e => e.Description))}";
+            StatusClass = "alert-danger";
+        }
+    }
+
+    private async Task DeactivateUser(string userId)
+    {
+        var user = await UserManager.FindByIdAsync(userId);
+        if (user != null)
+        {
+            await UserManager.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
+            StatusMessage = $"User {user.Email} deactivated.";
+            StatusClass = "alert-info";
+            await LoadUsers();
+        }
+    }
+
+    private async Task ActivateUser(string userId)
+    {
+        var user = await UserManager.FindByIdAsync(userId);
+        if (user != null)
+        {
+            await UserManager.SetLockoutEndDateAsync(user, null);
+            StatusMessage = $"User {user.Email} activated.";
+            StatusClass = "alert-success";
+            await LoadUsers();
+        }
+    }
+
+    public class CreateUserModel
+    {
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; } = "";
+
+        [Required]
+        [StringLength(100, MinimumLength = 6)]
+        public string Password { get; set; } = "";
+
+        [Required]
+        public string Role { get; set; } = "Viewer";
+    }
+}
