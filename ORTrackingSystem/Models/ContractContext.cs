@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using ORTrackingSystem.Data;
 
 namespace ORTrackingSystem.Models;
 
@@ -17,5 +18,6 @@ public class ContractContext
     public string CreatedByUserId { get; set; } = string.Empty;
 
     // Navigation properties
+    public ApplicationUser? CreatedByUser { get; set; }
     public ICollection<OR> ORs { get; set; } = new List<OR>();
 }
