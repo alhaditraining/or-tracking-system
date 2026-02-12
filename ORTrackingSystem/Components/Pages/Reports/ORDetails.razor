@@ -265,6 +265,8 @@ else
             return;
         }
 
+        var invoicedTotal = or.Invoices.Sum(i => i.Amount);
+
         orDetails = new ORDetailsViewModel
         {
             Id = or.Id,
@@ -273,8 +275,8 @@ else
             BudgetType = or.BudgetType,
             Status = or.Status,
             TotalValue = or.TotalValue,
-            InvoicedTotal = or.Invoices.Sum(i => i.Amount),
-            Remaining = or.TotalValue - or.Invoices.Sum(i => i.Amount),
+            InvoicedTotal = invoicedTotal,
+            Remaining = or.TotalValue - invoicedTotal,
             CreatedDate = or.CreatedDate,
             LMRequests = or.LM_Requests.Select(r => new LMRequestRow
             {

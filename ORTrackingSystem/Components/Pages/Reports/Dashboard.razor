@@ -172,35 +172,71 @@ else
 
     private async Task LoadDashboardData()
     {
-        // Load OPS metrics
-        var opsORs = await DbContext.ORs
+        // Load OPS metrics using database-level aggregations
+        var opsMetrics = await DbContext.ORs
             .Where(o => o.BudgetType == BudgetType.OPS)
-            .Include(o => o.Invoices)
-            .ToListAsync();
+            .GroupBy(o => 1)
+            .Select(g => new
+            {
+                TotalORs = g.Count(),
+                OpenORs = g.Count(o => o.Status == ORStatus.Open),
+                ClosedORs = g.Count(o => o.Status == ORStatus.Closed),
+                TotalORValue = g.Sum(o => o.TotalValue)
+            })
+            .FirstOrDefaultAsync();
 
-        dashboard.OPS.TotalORs = opsORs.Count;
-        dashboard.OPS.OpenORs = opsORs.Count(o => o.Status == ORStatus.Open);
-        dashboard.OPS.ClosedORs = opsORs.Count(o => o.Status == ORStatus.Closed);
-        dashboard.OPS.TotalORValue = opsORs.Sum(o => o.TotalValue);
-        dashboard.OPS.TotalInvoicedAmount = opsORs.SelectMany(o => o.Invoices).Sum(i => i.Amount);
+        var opsInvoiceMetrics = await DbContext.Invoices
+            .Where(i => i.OR.BudgetType == BudgetType.OPS)
+            .GroupBy(i => 1)
+            .Select(g => new
+            {
+                TotalInvoicedAmount = g.Sum(i => i.Amount),
+                PaidInvoicesTotal = g.Where(i => i.IsPaid == true).Sum(i => i.Amount),
+                UnpaidInvoicesTotal = g.Where(i => i.IsPaid != true).Sum(i => i.Amount)
+            })
+            .FirstOrDefaultAsync();
+
+        dashboard.OPS.TotalORs = opsMetrics?.TotalORs ?? 0;
+        dashboard.OPS.OpenORs = opsMetrics?.OpenORs ?? 0;
+        dashboard.OPS.ClosedORs = opsMetrics?.ClosedORs ?? 0;
+        dashboard.OPS.TotalORValue = opsMetrics?.TotalORValue ?? 0;
+        dashboard.OPS.TotalInvoicedAmount = opsInvoiceMetrics?.TotalInvoicedAmount ?? 0;
         dashboard.OPS.RemainingAmount = dashboard.OPS.TotalORValue - dashboard.OPS.TotalInvoicedAmount;
-        dashboard.OPS.PaidInvoicesTotal = opsORs.SelectMany(o => o.Invoices).Where(i => i.IsPaid == true).Sum(i => i.Amount);
-        dashboard.OPS.UnpaidInvoicesTotal = opsORs.SelectMany(o => o.Invoices).Where(i => i.IsPaid != true).Sum(i => i.Amount);
+        dashboard.OPS.PaidInvoicesTotal = opsInvoiceMetrics?.PaidInvoicesTotal ?? 0;
+        dashboard.OPS.UnpaidInvoicesTotal = opsInvoiceMetrics?.UnpaidInvoicesTotal ?? 0;
 
-        // Load BS metrics
-        var bsORs = await DbContext.ORs
+        // Load BS metrics using database-level aggregations
+        var bsMetrics = await DbContext.ORs
             .Where(o => o.BudgetType == BudgetType.BS)
-            .Include(o => o.Invoices)
-            .ToListAsync();
+            .GroupBy(o => 1)
+            .Select(g => new
+            {
+                TotalORs = g.Count(),
+                OpenORs = g.Count(o => o.Status == ORStatus.Open),
+                ClosedORs = g.Count(o => o.Status == ORStatus.Closed),
+                TotalORValue = g.Sum(o => o.TotalValue)
+            })
+            .FirstOrDefaultAsync();
 
-        dashboard.BS.TotalORs = bsORs.Count;
-        dashboard.BS.OpenORs = bsORs.Count(o => o.Status == ORStatus.Open);
-        dashboard.BS.ClosedORs = bsORs.Count(o => o.Status == ORStatus.Closed);
-        dashboard.BS.TotalORValue = bsORs.Sum(o => o.TotalValue);
-        dashboard.BS.TotalInvoicedAmount = bsORs.SelectMany(o => o.Invoices).Sum(i => i.Amount);
+        var bsInvoiceMetrics = await DbContext.Invoices
+            .Where(i => i.OR.BudgetType == BudgetType.BS)
+            .GroupBy(i => 1)
+            .Select(g => new
+            {
+                TotalInvoicedAmount = g.Sum(i => i.Amount),
+                PaidInvoicesTotal = g.Where(i => i.IsPaid == true).Sum(i => i.Amount),
+                UnpaidInvoicesTotal = g.Where(i => i.IsPaid != true).Sum(i => i.Amount)
+            })
+            .FirstOrDefaultAsync();
+
+        dashboard.BS.TotalORs = bsMetrics?.TotalORs ?? 0;
+        dashboard.BS.OpenORs = bsMetrics?.OpenORs ?? 0;
+        dashboard.BS.ClosedORs = bsMetrics?.ClosedORs ?? 0;
+        dashboard.BS.TotalORValue = bsMetrics?.TotalORValue ?? 0;
+        dashboard.BS.TotalInvoicedAmount = bsInvoiceMetrics?.TotalInvoicedAmount ?? 0;
         dashboard.BS.RemainingAmount = dashboard.BS.TotalORValue - dashboard.BS.TotalInvoicedAmount;
-        dashboard.BS.PaidInvoicesTotal = bsORs.SelectMany(o => o.Invoices).Where(i => i.IsPaid == true).Sum(i => i.Amount);
-        dashboard.BS.UnpaidInvoicesTotal = bsORs.SelectMany(o => o.Invoices).Where(i => i.IsPaid != true).Sum(i => i.Amount);
+        dashboard.BS.PaidInvoicesTotal = bsInvoiceMetrics?.PaidInvoicesTotal ?? 0;
+        dashboard.BS.UnpaidInvoicesTotal = bsInvoiceMetrics?.UnpaidInvoicesTotal ?? 0;
 
         // Calculate totals
         dashboard.Total.TotalORs = dashboard.OPS.TotalORs + dashboard.BS.TotalORs;

@@ -169,7 +169,6 @@ else
     {
         var query = DbContext.ORs
             .Include(o => o.ContractContext)
-            .Include(o => o.Invoices)
             .AsQueryable();
 
         // Apply filters
