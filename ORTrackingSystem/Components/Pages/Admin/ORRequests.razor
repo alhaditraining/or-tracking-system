@@ -157,7 +157,7 @@ else
                         <td>@(string.IsNullOrEmpty(request.Description) ? "-" : request.Description)</td>
                         <td>@request.Amount.ToString("C")</td>
                         <td>
-                            @if (request.IsCompleted == true)
+                            @if (request.IsCompleted ?? false)
                             {
                                 <span class="badge bg-success">Yes</span>
                             }
@@ -167,7 +167,7 @@ else
                             }
                         </td>
                         <td>
-                            @if (request.IsCancelled == true)
+                            @if (request.IsCancelled ?? false)
                             {
                                 <span class="badge bg-danger">Yes</span>
                             }
