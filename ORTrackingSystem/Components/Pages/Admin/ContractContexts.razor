@@ -91,6 +91,10 @@
     private string StatusClass = "";
     private string? CurrentUserId;
 
+    // SQL Server error codes for unique constraint violations
+    private const int SQL_SERVER_DUPLICATE_KEY_ERROR = 2601;
+    private const int SQL_SERVER_UNIQUE_CONSTRAINT_VIOLATION = 2627;
+
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
@@ -175,9 +179,17 @@
         catch (DbUpdateException ex)
         {
             // Check if it's a unique constraint violation on ContractName
-            if (ex.InnerException?.Message?.Contains("IX_ContractContexts_ContractName") == true ||
-                ex.InnerException?.Message?.Contains("duplicate") == true)
+            // SQL Server error codes: 2601 (duplicate key), 2627 (unique constraint violation)
+            var sqlException = ex.InnerException as Microsoft.Data.SqlClient.SqlException;
+            if (sqlException != null && (sqlException.Number == SQL_SERVER_DUPLICATE_KEY_ERROR || 
+                                        sqlException.Number == SQL_SERVER_UNIQUE_CONSTRAINT_VIOLATION))
             {
+                StatusMessage = "A Contract Context with this name already exists.";
+            }
+            else if (ex.InnerException?.Message?.Contains("IX_ContractContexts_ContractName") == true ||
+                     ex.InnerException?.Message?.Contains("duplicate") == true)
+            {
+                // Fallback for other database providers
                 StatusMessage = "A Contract Context with this name already exists.";
             }
             else
