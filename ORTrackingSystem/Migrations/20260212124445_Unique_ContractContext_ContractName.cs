@@ -10,50 +10,32 @@ namespace ORTrackingSystem.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "DisplayName",
-                table: "AspNetUsers",
-                type: "nvarchar(max)",
-                nullable: true);
+            migrationBuilder.Sql("""
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_ContractContexts_ContractName' AND object_id = OBJECT_ID(N'[ContractContexts]'))
+    CREATE UNIQUE INDEX [IX_ContractContexts_ContractName] ON [ContractContexts]([ContractName]);
 
-            migrationBuilder.CreateIndex(
-                name: "IX_ContractContexts_ContractName",
-                table: "ContractContexts",
-                column: "ContractName",
-                unique: true);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_ContractContexts_CreatedByUserId' AND object_id = OBJECT_ID(N'[ContractContexts]'))
+    CREATE INDEX [IX_ContractContexts_CreatedByUserId] ON [ContractContexts]([CreatedByUserId]);
 
-            migrationBuilder.CreateIndex(
-                name: "IX_ContractContexts_CreatedByUserId",
-                table: "ContractContexts",
-                column: "CreatedByUserId");
-
-            migrationBuilder.AddForeignKey(
-                name: "FK_ContractContexts_AspNetUsers_CreatedByUserId",
-                table: "ContractContexts",
-                column: "CreatedByUserId",
-                principalTable: "AspNetUsers",
-                principalColumn: "Id",
-                onDelete: ReferentialAction.Restrict);
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_ContractContexts_AspNetUsers_CreatedByUserId')
+    ALTER TABLE [ContractContexts] ADD CONSTRAINT [FK_ContractContexts_AspNetUsers_CreatedByUserId]
+        FOREIGN KEY ([CreatedByUserId]) REFERENCES [AspNetUsers]([Id]) ON DELETE NO ACTION;
+""");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropForeignKey(
-                name: "FK_ContractContexts_AspNetUsers_CreatedByUserId",
-                table: "ContractContexts");
+            migrationBuilder.Sql("""
+IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_ContractContexts_AspNetUsers_CreatedByUserId')
+    ALTER TABLE [ContractContexts] DROP CONSTRAINT [FK_ContractContexts_AspNetUsers_CreatedByUserId];
 
-            migrationBuilder.DropIndex(
-                name: "IX_ContractContexts_ContractName",
-                table: "ContractContexts");
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_ContractContexts_CreatedByUserId' AND object_id = OBJECT_ID(N'[ContractContexts]'))
+    DROP INDEX [IX_ContractContexts_CreatedByUserId] ON [ContractContexts];
 
-            migrationBuilder.DropIndex(
-                name: "IX_ContractContexts_CreatedByUserId",
-                table: "ContractContexts");
-
-            migrationBuilder.DropColumn(
-                name: "DisplayName",
-                table: "AspNetUsers");
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_ContractContexts_ContractName' AND object_id = OBJECT_ID(N'[ContractContexts]'))
+    DROP INDEX [IX_ContractContexts_ContractName] ON [ContractContexts];
+""");
         }
     }
 }
