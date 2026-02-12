@@ -126,7 +126,8 @@
                 <td>@or.CreatedDate.ToString("yyyy-MM-dd")</td>
                 <td>
                     <button class="btn btn-sm btn-primary me-1" @onclick="() => EditOR(or)">Edit</button>
-                    <button class="btn btn-sm btn-secondary" @onclick="() => ViewRequests(or.Id)">Requests</button>
+                    <button class="btn btn-sm btn-secondary me-1" @onclick="() => ViewRequests(or.Id)">Requests</button>
+                    <button class="btn btn-sm btn-info" @onclick="() => ViewInvoices(or.Id)">Invoices</button>
                 </td>
             </tr>
         }
@@ -203,6 +204,11 @@
     private void ViewRequests(int orId)
     {
         Navigation.NavigateTo($"/admin/ors/{orId}/requests");
+    }
+
+    private void ViewInvoices(int orId)
+    {
+        Navigation.NavigateTo($"/admin/ors/{orId}/invoices");
     }
 
     private async Task SaveOR()

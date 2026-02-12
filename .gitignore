@@ -382,3 +382,7 @@ FodyWeavers.xsd
 *.db
 *.db-shm
 *.db-wal
+
+# Uploaded files (user content)
+**/wwwroot/uploads/*
+!**/wwwroot/uploads/.gitkeep
