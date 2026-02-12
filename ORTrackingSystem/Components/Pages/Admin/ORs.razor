@@ -125,7 +125,8 @@
                 </td>
                 <td>@or.CreatedDate.ToString("yyyy-MM-dd")</td>
                 <td>
-                    <button class="btn btn-sm btn-primary" @onclick="() => EditOR(or)">Edit</button>
+                    <button class="btn btn-sm btn-primary me-1" @onclick="() => EditOR(or)">Edit</button>
+                    <button class="btn btn-sm btn-secondary" @onclick="() => ViewRequests(or.Id)">Requests</button>
                 </td>
             </tr>
         }
@@ -197,6 +198,11 @@
         ShowForm = false;
         EditingOR = null;
         StatusMessage = "";
+    }
+
+    private void ViewRequests(int orId)
+    {
+        Navigation.NavigateTo($"/admin/ors/{orId}/requests");
     }
 
     private async Task SaveOR()
