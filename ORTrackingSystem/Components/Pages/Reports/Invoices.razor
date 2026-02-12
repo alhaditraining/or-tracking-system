@@ -172,10 +172,7 @@ else
 
     private async Task LoadInvoiceReports()
     {
-        var query = DbContext.Invoices
-            .Include(i => i.OR)
-                .ThenInclude(o => o.ContractContext)
-            .AsQueryable();
+        var query = DbContext.Invoices.AsQueryable();
 
         // Apply filters
         if (selectedContractContextId > 0)

@@ -167,9 +167,7 @@ else
 
     private async Task LoadORReports()
     {
-        var query = DbContext.ORs
-            .Include(o => o.ContractContext)
-            .AsQueryable();
+        var query = DbContext.ORs.AsQueryable();
 
         // Apply filters
         if (selectedContractContextId > 0)
