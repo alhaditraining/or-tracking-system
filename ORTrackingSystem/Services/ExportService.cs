@@ -142,8 +142,11 @@ public class ExportService
             worksheet.Cell(rowNum, 5).Value = row.TotalValue;
             worksheet.Cell(rowNum, 6).Value = row.InvoicedTotal;
             worksheet.Cell(rowNum, 7).Value = row.Remaining;
-            worksheet.Cell(rowNum, 8).Value = row.CreatedDate.ToString("yyyy-MM-dd");
+            worksheet.Cell(rowNum, 8).Value = row.CreatedDate;
         }
+        
+        // Format date column
+        worksheet.Column(8).Style.DateFormat.Format = "yyyy-MM-dd";
         
         // Auto-fit columns
         worksheet.Columns().AdjustToContents();
@@ -183,9 +186,16 @@ public class ExportService
             worksheet.Cell(rowNum, 4).Value = row.InvoiceNumber;
             worksheet.Cell(rowNum, 5).Value = row.Amount;
             worksheet.Cell(rowNum, 6).Value = row.IsPaid == true ? "Paid" : "Unpaid";
-            worksheet.Cell(rowNum, 7).Value = row.PaidDate?.ToString("yyyy-MM-dd") ?? "";
-            worksheet.Cell(rowNum, 8).Value = row.CreatedDate.ToString("yyyy-MM-dd");
+            if (row.PaidDate.HasValue)
+            {
+                worksheet.Cell(rowNum, 7).Value = row.PaidDate.Value;
+            }
+            worksheet.Cell(rowNum, 8).Value = row.CreatedDate;
         }
+        
+        // Format date columns
+        worksheet.Column(7).Style.DateFormat.Format = "yyyy-MM-dd";
+        worksheet.Column(8).Style.DateFormat.Format = "yyyy-MM-dd";
         
         // Auto-fit columns
         worksheet.Columns().AdjustToContents();
@@ -219,9 +229,16 @@ public class ExportService
             worksheet.Cell(rowNum, 1).Value = row.InvoiceNumber;
             worksheet.Cell(rowNum, 2).Value = row.Amount;
             worksheet.Cell(rowNum, 3).Value = row.IsPaid == true ? "Paid" : "Unpaid";
-            worksheet.Cell(rowNum, 4).Value = row.PaidDate?.ToString("yyyy-MM-dd") ?? "";
-            worksheet.Cell(rowNum, 5).Value = row.CreatedDate.ToString("yyyy-MM-dd");
+            if (row.PaidDate.HasValue)
+            {
+                worksheet.Cell(rowNum, 4).Value = row.PaidDate.Value;
+            }
+            worksheet.Cell(rowNum, 5).Value = row.CreatedDate;
         }
+        
+        // Format date columns
+        worksheet.Column(4).Style.DateFormat.Format = "yyyy-MM-dd";
+        worksheet.Column(5).Style.DateFormat.Format = "yyyy-MM-dd";
         
         // Auto-fit columns
         worksheet.Columns().AdjustToContents();
@@ -256,8 +273,11 @@ public class ExportService
             worksheet.Cell(rowNum, 2).Value = row.Amount;
             worksheet.Cell(rowNum, 3).Value = row.IsCompleted == true ? "Yes" : row.IsCompleted == false ? "No" : "-";
             worksheet.Cell(rowNum, 4).Value = row.IsCancelled == true ? "Yes" : row.IsCancelled == false ? "No" : "-";
-            worksheet.Cell(rowNum, 5).Value = row.CreatedDate.ToString("yyyy-MM-dd");
+            worksheet.Cell(rowNum, 5).Value = row.CreatedDate;
         }
+        
+        // Format date column
+        worksheet.Column(5).Style.DateFormat.Format = "yyyy-MM-dd";
         
         // Auto-fit columns
         worksheet.Columns().AdjustToContents();
@@ -293,11 +313,18 @@ public class ExportService
             worksheet.Cell(rowNum, 1).Value = row.InvoiceNumber;
             worksheet.Cell(rowNum, 2).Value = row.Amount;
             worksheet.Cell(rowNum, 3).Value = row.IsPaid == true ? "Paid" : "Unpaid";
-            worksheet.Cell(rowNum, 4).Value = row.PaidDate?.ToString("yyyy-MM-dd") ?? "";
-            worksheet.Cell(rowNum, 5).Value = row.CreatedDate.ToString("yyyy-MM-dd");
+            if (row.PaidDate.HasValue)
+            {
+                worksheet.Cell(rowNum, 4).Value = row.PaidDate.Value;
+            }
+            worksheet.Cell(rowNum, 5).Value = row.CreatedDate;
             worksheet.Cell(rowNum, 6).Value = row.DeliveryNoteCount;
             worksheet.Cell(rowNum, 7).Value = row.InvoiceImageCount;
         }
+        
+        // Format date columns
+        worksheet.Column(4).Style.DateFormat.Format = "yyyy-MM-dd";
+        worksheet.Column(5).Style.DateFormat.Format = "yyyy-MM-dd";
         
         // Auto-fit columns
         worksheet.Columns().AdjustToContents();
