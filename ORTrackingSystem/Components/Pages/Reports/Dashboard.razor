@@ -1,0 +1,215 @@
+@page "/reports/dashboard"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@using ORTrackingSystem.Data
+@using ORTrackingSystem.Models
+@using ORTrackingSystem.Models.ViewModels
+@attribute [Authorize(Policy = "ViewerOrAdmin")]
+@rendermode InteractiveServer
+
+@inject ApplicationDbContext DbContext
+
+<PageTitle>Reports Dashboard</PageTitle>
+
+<h1>Reports Dashboard</h1>
+
+@if (isLoading)
+{
+    <div class="text-center">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else
+{
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h3>Overall Metrics</h3>
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Total ORs</h5>
+                            <p class="card-text display-6">@dashboard.Total.TotalORs</p>
+                            <small class="text-muted">Open: @dashboard.Total.OpenORs | Closed: @dashboard.Total.ClosedORs</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Total OR Value</h5>
+                            <p class="card-text display-6">@dashboard.Total.TotalORValue.ToString("C")</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Total Invoiced</h5>
+                            <p class="card-text display-6">@dashboard.Total.TotalInvoicedAmount.ToString("C")</p>
+                            <small class="text-muted">Paid: @dashboard.Total.PaidInvoicesTotal.ToString("C")</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Remaining</h5>
+                            <p class="card-text display-6">@dashboard.Total.RemainingAmount.ToString("C")</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">OPS Budget</h4>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tbody>
+                            <tr>
+                                <th>Total ORs:</th>
+                                <td>@dashboard.OPS.TotalORs</td>
+                            </tr>
+                            <tr>
+                                <th>Open ORs:</th>
+                                <td>@dashboard.OPS.OpenORs</td>
+                            </tr>
+                            <tr>
+                                <th>Closed ORs:</th>
+                                <td>@dashboard.OPS.ClosedORs</td>
+                            </tr>
+                            <tr>
+                                <th>Total Value:</th>
+                                <td>@dashboard.OPS.TotalORValue.ToString("C")</td>
+                            </tr>
+                            <tr>
+                                <th>Invoiced Amount:</th>
+                                <td>@dashboard.OPS.TotalInvoicedAmount.ToString("C")</td>
+                            </tr>
+                            <tr>
+                                <th>Remaining:</th>
+                                <td>@dashboard.OPS.RemainingAmount.ToString("C")</td>
+                            </tr>
+                            <tr>
+                                <th>Paid Invoices:</th>
+                                <td>@dashboard.OPS.PaidInvoicesTotal.ToString("C")</td>
+                            </tr>
+                            <tr>
+                                <th>Unpaid Invoices:</th>
+                                <td>@dashboard.OPS.UnpaidInvoicesTotal.ToString("C")</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">BS Budget</h4>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tbody>
+                            <tr>
+                                <th>Total ORs:</th>
+                                <td>@dashboard.BS.TotalORs</td>
+                            </tr>
+                            <tr>
+                                <th>Open ORs:</th>
+                                <td>@dashboard.BS.OpenORs</td>
+                            </tr>
+                            <tr>
+                                <th>Closed ORs:</th>
+                                <td>@dashboard.BS.ClosedORs</td>
+                            </tr>
+                            <tr>
+                                <th>Total Value:</th>
+                                <td>@dashboard.BS.TotalORValue.ToString("C")</td>
+                            </tr>
+                            <tr>
+                                <th>Invoiced Amount:</th>
+                                <td>@dashboard.BS.TotalInvoicedAmount.ToString("C")</td>
+                            </tr>
+                            <tr>
+                                <th>Remaining:</th>
+                                <td>@dashboard.BS.RemainingAmount.ToString("C")</td>
+                            </tr>
+                            <tr>
+                                <th>Paid Invoices:</th>
+                                <td>@dashboard.BS.PaidInvoicesTotal.ToString("C")</td>
+                            </tr>
+                            <tr>
+                                <th>Unpaid Invoices:</th>
+                                <td>@dashboard.BS.UnpaidInvoicesTotal.ToString("C")</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private DashboardViewModel dashboard = new();
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDashboardData();
+        isLoading = false;
+    }
+
+    private async Task LoadDashboardData()
+    {
+        // Load OPS metrics
+        var opsORs = await DbContext.ORs
+            .Where(o => o.BudgetType == BudgetType.OPS)
+            .Include(o => o.Invoices)
+            .ToListAsync();
+
+        dashboard.OPS.TotalORs = opsORs.Count;
+        dashboard.OPS.OpenORs = opsORs.Count(o => o.Status == ORStatus.Open);
+        dashboard.OPS.ClosedORs = opsORs.Count(o => o.Status == ORStatus.Closed);
+        dashboard.OPS.TotalORValue = opsORs.Sum(o => o.TotalValue);
+        dashboard.OPS.TotalInvoicedAmount = opsORs.SelectMany(o => o.Invoices).Sum(i => i.Amount);
+        dashboard.OPS.RemainingAmount = dashboard.OPS.TotalORValue - dashboard.OPS.TotalInvoicedAmount;
+        dashboard.OPS.PaidInvoicesTotal = opsORs.SelectMany(o => o.Invoices).Where(i => i.IsPaid == true).Sum(i => i.Amount);
+        dashboard.OPS.UnpaidInvoicesTotal = opsORs.SelectMany(o => o.Invoices).Where(i => i.IsPaid != true).Sum(i => i.Amount);
+
+        // Load BS metrics
+        var bsORs = await DbContext.ORs
+            .Where(o => o.BudgetType == BudgetType.BS)
+            .Include(o => o.Invoices)
+            .ToListAsync();
+
+        dashboard.BS.TotalORs = bsORs.Count;
+        dashboard.BS.OpenORs = bsORs.Count(o => o.Status == ORStatus.Open);
+        dashboard.BS.ClosedORs = bsORs.Count(o => o.Status == ORStatus.Closed);
+        dashboard.BS.TotalORValue = bsORs.Sum(o => o.TotalValue);
+        dashboard.BS.TotalInvoicedAmount = bsORs.SelectMany(o => o.Invoices).Sum(i => i.Amount);
+        dashboard.BS.RemainingAmount = dashboard.BS.TotalORValue - dashboard.BS.TotalInvoicedAmount;
+        dashboard.BS.PaidInvoicesTotal = bsORs.SelectMany(o => o.Invoices).Where(i => i.IsPaid == true).Sum(i => i.Amount);
+        dashboard.BS.UnpaidInvoicesTotal = bsORs.SelectMany(o => o.Invoices).Where(i => i.IsPaid != true).Sum(i => i.Amount);
+
+        // Calculate totals
+        dashboard.Total.TotalORs = dashboard.OPS.TotalORs + dashboard.BS.TotalORs;
+        dashboard.Total.OpenORs = dashboard.OPS.OpenORs + dashboard.BS.OpenORs;
+        dashboard.Total.ClosedORs = dashboard.OPS.ClosedORs + dashboard.BS.ClosedORs;
+        dashboard.Total.TotalORValue = dashboard.OPS.TotalORValue + dashboard.BS.TotalORValue;
+        dashboard.Total.TotalInvoicedAmount = dashboard.OPS.TotalInvoicedAmount + dashboard.BS.TotalInvoicedAmount;
+        dashboard.Total.RemainingAmount = dashboard.OPS.RemainingAmount + dashboard.BS.RemainingAmount;
+        dashboard.Total.PaidInvoicesTotal = dashboard.OPS.PaidInvoicesTotal + dashboard.BS.PaidInvoicesTotal;
+        dashboard.Total.UnpaidInvoicesTotal = dashboard.OPS.UnpaidInvoicesTotal + dashboard.BS.UnpaidInvoicesTotal;
+    }
+}

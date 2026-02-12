@@ -1,0 +1,16 @@
+@page "/reports"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Policy = "ViewerOrAdmin")]
+@rendermode InteractiveServer
+
+@inject NavigationManager Navigation
+
+<PageTitle>Reports</PageTitle>
+
+@code {
+    protected override void OnInitialized()
+    {
+        // Redirect to dashboard
+        Navigation.NavigateTo("/reports/dashboard", replace: true);
+    }
+}

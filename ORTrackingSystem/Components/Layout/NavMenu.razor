@@ -33,8 +33,23 @@
         <AuthorizeView Policy="ViewerOrAdmin">
             <Authorized>
                 <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="reports">
-                        <span class="bi bi-file-earmark-text-nav-menu" aria-hidden="true"></span> Reports
+                    <NavLink class="nav-link" href="reports/dashboard">
+                        <span class="bi bi-speedometer2" aria-hidden="true"></span> Dashboard
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="reports/ors">
+                        <span class="bi bi-cash-stack" aria-hidden="true"></span> OR Reports
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="reports/invoices">
+                        <span class="bi bi-receipt" aria-hidden="true"></span> Invoice Reports
+                    </NavLink>
+                </div>
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="reports/stationery">
+                        <span class="bi bi-pencil-square" aria-hidden="true"></span> Stationery Reports
                     </NavLink>
                 </div>
             </Authorized>

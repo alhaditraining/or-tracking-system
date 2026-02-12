@@ -1,0 +1,306 @@
+@page "/reports/ors/{orId:int}"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@using ORTrackingSystem.Data
+@using ORTrackingSystem.Models
+@using ORTrackingSystem.Models.ViewModels
+@attribute [Authorize(Policy = "ViewerOrAdmin")]
+@rendermode InteractiveServer
+
+@inject ApplicationDbContext DbContext
+@inject NavigationManager Navigation
+
+<PageTitle>OR Details</PageTitle>
+
+<div class="mb-3">
+    <button class="btn btn-secondary" @onclick="GoBack">
+        <span class="bi bi-arrow-left"></span> Back to OR Reports
+    </button>
+</div>
+
+@if (isLoading)
+{
+    <div class="text-center">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else if (orDetails == null)
+{
+    <div class="alert alert-warning">
+        OR not found.
+    </div>
+}
+else
+{
+    <h1>OR Details: @orDetails.ORNumber</h1>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4>OR Information</h4>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <table class="table table-sm">
+                        <tbody>
+                            <tr>
+                                <th>OR Number:</th>
+                                <td>@orDetails.ORNumber</td>
+                            </tr>
+                            <tr>
+                                <th>Contract Name:</th>
+                                <td>@orDetails.ContractName</td>
+                            </tr>
+                            <tr>
+                                <th>Budget Type:</th>
+                                <td>@orDetails.BudgetType</td>
+                            </tr>
+                            <tr>
+                                <th>Status:</th>
+                                <td>
+                                    <span class="badge @(orDetails.Status == ORStatus.Open ? "bg-success" : "bg-secondary")">
+                                        @orDetails.Status
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Created Date:</th>
+                                <td>@orDetails.CreatedDate.ToString("yyyy-MM-dd")</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <table class="table table-sm">
+                        <tbody>
+                            <tr>
+                                <th>Total Value:</th>
+                                <td class="text-end">@orDetails.TotalValue.ToString("C")</td>
+                            </tr>
+                            <tr>
+                                <th>Invoiced Total:</th>
+                                <td class="text-end">@orDetails.InvoicedTotal.ToString("C")</td>
+                            </tr>
+                            <tr>
+                                <th>Remaining:</th>
+                                <td class="text-end">@orDetails.Remaining.ToString("C")</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (orDetails.HasMissingAttachments)
+    {
+        <div class="alert alert-warning" role="alert">
+            <span class="bi bi-exclamation-triangle"></span>
+            <strong>Warning:</strong> Some invoices are missing attachments (Delivery Note or Invoice Image).
+        </div>
+    }
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4>LM Requests (@orDetails.LMRequests.Count)</h4>
+        </div>
+        <div class="card-body">
+            @if (orDetails.LMRequests.Count == 0)
+            {
+                <p class="text-muted">No LM Requests found for this OR.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Request Number</th>
+                                <th class="text-end">Amount</th>
+                                <th>Completed</th>
+                                <th>Cancelled</th>
+                                <th>Created Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var request in orDetails.LMRequests)
+                            {
+                                <tr>
+                                    <td>@request.RequestNumber</td>
+                                    <td class="text-end">@request.Amount.ToString("C")</td>
+                                    <td>
+                                        @if (request.IsCompleted == true)
+                                        {
+                                            <span class="badge bg-success">Yes</span>
+                                        }
+                                        else if (request.IsCompleted == false)
+                                        {
+                                            <span class="badge bg-warning">No</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (request.IsCancelled == true)
+                                        {
+                                            <span class="badge bg-danger">Yes</span>
+                                        }
+                                        else if (request.IsCancelled == false)
+                                        {
+                                            <span class="badge bg-success">No</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                    <td>@request.CreatedDate.ToString("yyyy-MM-dd")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4>Invoices (@orDetails.Invoices.Count)</h4>
+        </div>
+        <div class="card-body">
+            @if (orDetails.Invoices.Count == 0)
+            {
+                <p class="text-muted">No Invoices found for this OR.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Invoice Number</th>
+                                <th class="text-end">Amount</th>
+                                <th>Paid</th>
+                                <th>Paid Date</th>
+                                <th>Created Date</th>
+                                <th class="text-center">Delivery Notes</th>
+                                <th class="text-center">Invoice Images</th>
+                                <th>Attachments</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var invoice in orDetails.Invoices)
+                            {
+                                <tr>
+                                    <td>@invoice.InvoiceNumber</td>
+                                    <td class="text-end">@invoice.Amount.ToString("C")</td>
+                                    <td>
+                                        @if (invoice.IsPaid == true)
+                                        {
+                                            <span class="badge bg-success">Paid</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-warning">Unpaid</span>
+                                        }
+                                    </td>
+                                    <td>@(invoice.PaidDate?.ToString("yyyy-MM-dd") ?? "-")</td>
+                                    <td>@invoice.CreatedDate.ToString("yyyy-MM-dd")</td>
+                                    <td class="text-center">@invoice.DeliveryNoteCount</td>
+                                    <td class="text-center">@invoice.InvoiceImageCount</td>
+                                    <td>
+                                        @if (invoice.HasMissingAttachments)
+                                        {
+                                            <span class="badge bg-warning">
+                                                <span class="bi bi-exclamation-triangle"></span> Missing
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-success">
+                                                <span class="bi bi-check-circle"></span> Complete
+                                            </span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int ORId { get; set; }
+
+    private ORDetailsViewModel? orDetails;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadORDetails();
+        isLoading = false;
+    }
+
+    private async Task LoadORDetails()
+    {
+        var or = await DbContext.ORs
+            .Include(o => o.ContractContext)
+            .Include(o => o.LM_Requests)
+            .Include(o => o.Invoices)
+                .ThenInclude(i => i.InvoiceAttachments)
+            .FirstOrDefaultAsync(o => o.Id == ORId);
+
+        if (or == null)
+        {
+            orDetails = null;
+            return;
+        }
+
+        orDetails = new ORDetailsViewModel
+        {
+            Id = or.Id,
+            ORNumber = or.ORNumber,
+            ContractName = or.ContractContext.ContractName,
+            BudgetType = or.BudgetType,
+            Status = or.Status,
+            TotalValue = or.TotalValue,
+            InvoicedTotal = or.Invoices.Sum(i => i.Amount),
+            Remaining = or.TotalValue - or.Invoices.Sum(i => i.Amount),
+            CreatedDate = or.CreatedDate,
+            LMRequests = or.LM_Requests.Select(r => new LMRequestRow
+            {
+                RequestNumber = r.RequestNumber,
+                Amount = r.Amount,
+                IsCompleted = r.IsCompleted,
+                IsCancelled = r.IsCancelled,
+                CreatedDate = r.CreatedDate
+            }).OrderByDescending(r => r.CreatedDate).ToList(),
+            Invoices = or.Invoices.Select(i => new InvoiceRow
+            {
+                InvoiceNumber = i.InvoiceNumber,
+                Amount = i.Amount,
+                IsPaid = i.IsPaid,
+                PaidDate = i.PaidDate,
+                CreatedDate = i.CreatedDate,
+                DeliveryNoteCount = i.InvoiceAttachments.Count(a => a.AttachmentType == AttachmentType.DeliveryNote),
+                InvoiceImageCount = i.InvoiceAttachments.Count(a => a.AttachmentType == AttachmentType.InvoiceImage)
+            }).OrderByDescending(i => i.CreatedDate).ToList()
+        };
+
+        orDetails.HasMissingAttachments = orDetails.Invoices.Any(i => i.HasMissingAttachments);
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/reports/ors");
+    }
+}
