@@ -9,6 +9,8 @@
 
 @inject ApplicationDbContext DbContext
 @inject NavigationManager Navigation
+@inject ORTrackingSystem.Services.ExportService ExportService
+@inject IJSRuntime JSRuntime
 
 <PageTitle>OR Details</PageTitle>
 
@@ -104,7 +106,17 @@ else
 
     <div class="card mb-4">
         <div class="card-header">
-            <h4>LM Requests (@orDetails.LMRequests.Count)</h4>
+            <div class="d-flex justify-content-between align-items-center">
+                <h4>LM Requests (@orDetails.LMRequests.Count)</h4>
+                <div>
+                    <button class="btn btn-sm btn-success me-2" @onclick="ExportLMRequestsToCsv">
+                        <span class="bi bi-file-earmark-spreadsheet"></span> Export CSV
+                    </button>
+                    <button class="btn btn-sm btn-primary" @onclick="ExportLMRequestsToExcel">
+                        <span class="bi bi-file-earmark-excel"></span> Export Excel
+                    </button>
+                </div>
+            </div>
         </div>
         <div class="card-body">
             @if (orDetails.LMRequests.Count == 0)
@@ -170,7 +182,17 @@ else
 
     <div class="card mb-4">
         <div class="card-header">
-            <h4>Invoices (@orDetails.Invoices.Count)</h4>
+            <div class="d-flex justify-content-between align-items-center">
+                <h4>Invoices (@orDetails.Invoices.Count)</h4>
+                <div>
+                    <button class="btn btn-sm btn-success me-2" @onclick="ExportInvoicesToCsv">
+                        <span class="bi bi-file-earmark-spreadsheet"></span> Export CSV
+                    </button>
+                    <button class="btn btn-sm btn-primary" @onclick="ExportInvoicesToExcel">
+                        <span class="bi bi-file-earmark-excel"></span> Export Excel
+                    </button>
+                </div>
+            </div>
         </div>
         <div class="card-body">
             @if (orDetails.Invoices.Count == 0)
@@ -304,5 +326,43 @@ else
     private void GoBack()
     {
         Navigation.NavigateTo("/reports/ors");
+    }
+    
+    private async Task ExportLMRequestsToCsv()
+    {
+        if (orDetails == null) return;
+        var fileName = $"report-lm-requests-{orDetails.ORNumber}-{DateTime.Now:yyyyMMdd-HHmmss}.csv";
+        var csvData = ExportService.ExportLMRequestsToCsv(orDetails.LMRequests);
+        await DownloadFile(fileName, csvData, "text/csv");
+    }
+    
+    private async Task ExportLMRequestsToExcel()
+    {
+        if (orDetails == null) return;
+        var fileName = $"report-lm-requests-{orDetails.ORNumber}-{DateTime.Now:yyyyMMdd-HHmmss}.xlsx";
+        var excelData = ExportService.ExportLMRequestsToExcel(orDetails.LMRequests);
+        await DownloadFile(fileName, excelData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    }
+    
+    private async Task ExportInvoicesToCsv()
+    {
+        if (orDetails == null) return;
+        var fileName = $"report-invoices-{orDetails.ORNumber}-{DateTime.Now:yyyyMMdd-HHmmss}.csv";
+        var csvData = ExportService.ExportInvoicesToCsv(orDetails.Invoices);
+        await DownloadFile(fileName, csvData, "text/csv");
+    }
+    
+    private async Task ExportInvoicesToExcel()
+    {
+        if (orDetails == null) return;
+        var fileName = $"report-invoices-{orDetails.ORNumber}-{DateTime.Now:yyyyMMdd-HHmmss}.xlsx";
+        var excelData = ExportService.ExportInvoicesToExcel(orDetails.Invoices);
+        await DownloadFile(fileName, excelData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    }
+    
+    private async Task DownloadFile(string fileName, byte[] data, string contentType)
+    {
+        var base64 = Convert.ToBase64String(data);
+        await JSRuntime.InvokeVoidAsync("downloadFile", fileName, base64, contentType);
     }
 }
