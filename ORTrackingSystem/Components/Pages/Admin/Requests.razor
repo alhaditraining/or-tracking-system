@@ -1,0 +1,352 @@
+@page "/admin/requests"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@using ORTrackingSystem.Data
+@using ORTrackingSystem.Models
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.ComponentModel.DataAnnotations
+@attribute [Authorize(Policy = "AdminOnly")]
+@rendermode InteractiveServer
+
+@inject ApplicationDbContext DbContext
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>LM Requests</PageTitle>
+
+<h1>LM Requests</h1>
+
+<div class="mb-3">
+    <button class="btn btn-primary" @onclick="ShowCreateForm">
+        <span class="bi bi-plus-circle"></span> Create New LM Request
+    </button>
+</div>
+
+@if (ShowForm && EditingRequest != null)
+{
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3>@(EditingRequest.Id > 0 ? "Edit" : "Create") LM Request</h3>
+        </div>
+        <div class="card-body">
+            <EditForm Model="EditingRequest" OnValidSubmit="SaveRequest" FormName="requestForm">
+                <DataAnnotationsValidator />
+                <ValidationSummary class="text-danger" />
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">OR</label>
+                        <InputSelect @bind-Value="EditingRequest.ORId" class="form-control" disabled="@(EditingRequest.Id > 0)">
+                            <option value="0">-- Select OR --</option>
+                            @foreach (var or in ORsList)
+                            {
+                                <option value="@or.Id">@or.ORNumber (@or.ContractContext.ContractName)</option>
+                            }
+                        </InputSelect>
+                        @if (EditingRequest.ORId == 0)
+                        {
+                            <small class="text-danger">Please select an OR.</small>
+                        }
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Request Number</label>
+                        <InputText @bind-Value="EditingRequest.RequestNumber" class="form-control" />
+                        <ValidationMessage For="() => EditingRequest!.RequestNumber" />
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Amount</label>
+                        <InputNumber @bind-Value="EditingRequest.Amount" class="form-control" step="0.01" />
+                        <ValidationMessage For="() => EditingRequest!.Amount" />
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Description</label>
+                        <InputText @bind-Value="EditingRequest.Description" class="form-control" />
+                        <ValidationMessage For="() => EditingRequest!.Description" />
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">
+                            <InputCheckbox @bind-Value="EditingRequest.IsCompleted" />
+                            Is Completed
+                        </label>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">
+                            <InputCheckbox @bind-Value="EditingRequest.IsCancelled" />
+                            Is Cancelled
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-success" disabled="@(EditingRequest.ORId == 0 || IsORClosed())">Save</button>
+                    <button type="button" class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
+                </div>
+                
+                @if (IsORClosed())
+                {
+                    <div class="alert alert-warning mt-3" role="alert">
+                        <strong>Warning:</strong> The selected OR is closed. You cannot create or edit requests for closed ORs.
+                    </div>
+                }
+            </EditForm>
+        </div>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(StatusMessage))
+{
+    <div class="alert @StatusClass" role="alert">
+        @StatusMessage
+    </div>
+}
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>OR Number</th>
+            <th>Request Number</th>
+            <th>Description</th>
+            <th>Amount</th>
+            <th>Completed</th>
+            <th>Cancelled</th>
+            <th>Created Date</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var request in RequestsList)
+        {
+            <tr>
+                <td>@request.Id</td>
+                <td>@request.OR.ORNumber</td>
+                <td>@request.RequestNumber</td>
+                <td>@(string.IsNullOrEmpty(request.Description) ? "-" : request.Description)</td>
+                <td>@request.Amount.ToString("C")</td>
+                <td>
+                    @if (request.IsCompleted ?? false)
+                    {
+                        <span class="badge bg-success">Yes</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary">No</span>
+                    }
+                </td>
+                <td>
+                    @if (request.IsCancelled ?? false)
+                    {
+                        <span class="badge bg-danger">Yes</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary">No</span>
+                    }
+                </td>
+                <td>@request.CreatedDate.ToString("yyyy-MM-dd")</td>
+                <td>
+                    <button class="btn btn-sm btn-primary" @onclick="() => EditRequest(request)">Edit</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private List<LM_Request> RequestsList = new();
+    private List<OR> ORsList = new();
+    private RequestFormModel? EditingRequest;
+    private bool ShowForm = false;
+    private string StatusMessage = "";
+    private string StatusClass = "";
+    private string? CurrentUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        CurrentUserId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        
+        await LoadORs();
+        await LoadRequests();
+    }
+
+    private async Task LoadORs()
+    {
+        ORsList = await DbContext.ORs
+            .Include(o => o.ContractContext)
+            .OrderByDescending(o => o.CreatedDate)
+            .ToListAsync();
+    }
+
+    private async Task LoadRequests()
+    {
+        RequestsList = await DbContext.LM_Requests
+            .Include(r => r.OR)
+            .OrderByDescending(r => r.CreatedDate)
+            .ToListAsync();
+    }
+
+    private void ShowCreateForm()
+    {
+        EditingRequest = new RequestFormModel
+        {
+            IsCompleted = false,
+            IsCancelled = false
+        };
+        ShowForm = true;
+        StatusMessage = "";
+    }
+
+    private void EditRequest(LM_Request request)
+    {
+        EditingRequest = new RequestFormModel
+        {
+            Id = request.Id,
+            ORId = request.ORId,
+            RequestNumber = request.RequestNumber,
+            Description = request.Description,
+            Amount = request.Amount,
+            IsCompleted = request.IsCompleted ?? false,
+            IsCancelled = request.IsCancelled ?? false
+        };
+        ShowForm = true;
+        StatusMessage = "";
+    }
+
+    private void CancelEdit()
+    {
+        ShowForm = false;
+        EditingRequest = null;
+        StatusMessage = "";
+    }
+
+    private bool IsORClosed()
+    {
+        if (EditingRequest == null || EditingRequest.ORId == 0)
+            return false;
+            
+        var selectedOR = ORsList.FirstOrDefault(o => o.Id == EditingRequest.ORId);
+        return selectedOR?.Status == ORStatus.Closed;
+    }
+
+    private async Task SaveRequest()
+    {
+        if (EditingRequest == null) return;
+        
+        if (EditingRequest.ORId == 0)
+        {
+            StatusMessage = "Please select an OR.";
+            StatusClass = "alert-danger";
+            return;
+        }
+
+        // Check if OR is closed
+        var selectedOR = await DbContext.ORs.FindAsync(EditingRequest.ORId);
+        if (selectedOR == null)
+        {
+            StatusMessage = "Selected OR not found.";
+            StatusClass = "alert-danger";
+            return;
+        }
+
+        if (selectedOR.Status == ORStatus.Closed)
+        {
+            StatusMessage = "Cannot create or edit requests for a closed OR.";
+            StatusClass = "alert-danger";
+            return;
+        }
+
+        try
+        {
+            if (EditingRequest.Id == 0)
+            {
+                // Create new
+                var newRequest = new LM_Request
+                {
+                    ORId = EditingRequest.ORId,
+                    RequestNumber = EditingRequest.RequestNumber,
+                    Description = EditingRequest.Description,
+                    Amount = EditingRequest.Amount,
+                    IsCompleted = EditingRequest.IsCompleted,
+                    IsCancelled = EditingRequest.IsCancelled,
+                    CreatedDate = DateTime.UtcNow,
+                    CreatedByUserId = CurrentUserId ?? "unknown"
+                };
+                DbContext.LM_Requests.Add(newRequest);
+            }
+            else
+            {
+                // Update existing
+                var existingRequest = await DbContext.LM_Requests.FindAsync(EditingRequest.Id);
+                if (existingRequest != null)
+                {
+                    existingRequest.RequestNumber = EditingRequest.RequestNumber;
+                    existingRequest.Description = EditingRequest.Description;
+                    existingRequest.Amount = EditingRequest.Amount;
+                    existingRequest.IsCompleted = EditingRequest.IsCompleted;
+                    existingRequest.IsCancelled = EditingRequest.IsCancelled;
+                }
+            }
+
+            await DbContext.SaveChangesAsync();
+            
+            StatusMessage = EditingRequest.Id == 0 
+                ? "LM Request created successfully."
+                : "LM Request updated successfully.";
+            StatusClass = "alert-success";
+            
+            ShowForm = false;
+            EditingRequest = null;
+            await LoadRequests();
+        }
+        catch (DbUpdateException ex)
+        {
+            if (ex.InnerException?.Message.Contains("IX_LM_Requests_ORId_RequestNumber") ?? false)
+            {
+                StatusMessage = "Error: A request with this Request Number already exists for the selected OR.";
+            }
+            else
+            {
+                StatusMessage = $"Error saving LM Request: {ex.Message}";
+            }
+            StatusClass = "alert-danger";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error saving LM Request: {ex.Message}";
+            StatusClass = "alert-danger";
+        }
+    }
+
+    public class RequestFormModel
+    {
+        public int Id { get; set; }
+
+        public int ORId { get; set; }
+
+        [Required]
+        [MaxLength(100)]
+        public string RequestNumber { get; set; } = string.Empty;
+
+        [MaxLength(500)]
+        public string? Description { get; set; }
+
+        [Required]
+        [Range(0.01, double.MaxValue, ErrorMessage = "Amount must be greater than 0")]
+        public decimal Amount { get; set; }
+
+        public bool IsCompleted { get; set; }
+
+        public bool IsCancelled { get; set; }
+    }
+}
