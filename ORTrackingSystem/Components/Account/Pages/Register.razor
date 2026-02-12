@@ -1,0 +1,24 @@
+﻿@page "/Account/Register"
+
+@inject NavigationManager NavigationManager
+
+<PageTitle>Registration Disabled</PageTitle>
+
+<h1>Registration Not Available</h1>
+
+<div class="alert alert-warning" role="alert">
+    <h4 class="alert-heading">Public Registration is Disabled</h4>
+    <p>User registration is not available for public access. New user accounts can only be created by administrators.</p>
+    <hr>
+    <p class="mb-0">If you need an account, please contact your system administrator.</p>
+</div>
+
+<a href="Account/Login" class="btn btn-primary">Go to Login</a>
+
+@code {
+    // Registration is disabled - redirect attempts to access this page
+    protected override void OnInitialized()
+    {
+        // Page is displayed with disabled message - no redirect needed
+    }
+}
