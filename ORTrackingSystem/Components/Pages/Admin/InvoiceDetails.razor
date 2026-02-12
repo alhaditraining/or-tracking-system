@@ -1,0 +1,238 @@
+@page "/admin/invoices/{invoiceId:int}"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@using ORTrackingSystem.Data
+@using ORTrackingSystem.Models
+@attribute [Authorize(Policy = "AdminOnly")]
+@rendermode InteractiveServer
+
+@inject ApplicationDbContext DbContext
+@inject NavigationManager Navigation
+
+<PageTitle>Invoice Details</PageTitle>
+
+<div class="mb-3">
+    <button class="btn btn-secondary" @onclick="GoBack">
+        <span class="bi bi-arrow-left"></span> Back to Invoices
+    </button>
+</div>
+
+@if (CurrentInvoice == null)
+{
+    <div class="alert alert-warning">
+        Invoice not found.
+    </div>
+}
+else
+{
+    <h1>Invoice Details: @CurrentInvoice.InvoiceNumber</h1>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3>Invoice Information</h3>
+        </div>
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <strong>Invoice Number:</strong>
+                </div>
+                <div class="col-md-9">
+                    @CurrentInvoice.InvoiceNumber
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <strong>OR:</strong>
+                </div>
+                <div class="col-md-9">
+                    @CurrentInvoice.OR.ORNumber - @CurrentInvoice.OR.ContractContext.ContractName
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <strong>Amount:</strong>
+                </div>
+                <div class="col-md-9">
+                    @CurrentInvoice.Amount.ToString("C")
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <strong>Is Paid:</strong>
+                </div>
+                <div class="col-md-9">
+                    @if (CurrentInvoice.IsPaid ?? false)
+                    {
+                        <span class="badge bg-success">Yes</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary">No</span>
+                    }
+                </div>
+            </div>
+            @if (CurrentInvoice.IsPaid ?? false)
+            {
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <strong>Paid Date:</strong>
+                    </div>
+                    <div class="col-md-9">
+                        @CurrentInvoice.PaidDate?.ToString("yyyy-MM-dd")
+                    </div>
+                </div>
+            }
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <strong>Created Date:</strong>
+                </div>
+                <div class="col-md-9">
+                    @CurrentInvoice.CreatedDate.ToString("yyyy-MM-dd HH:mm")
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3>Attachments</h3>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                @foreach (var attachment in CurrentInvoice.InvoiceAttachments.OrderBy(a => a.AttachmentType))
+                {
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">
+                                    @if (attachment.AttachmentType == AttachmentType.DeliveryNote)
+                                    {
+                                        <span class="bi bi-file-earmark-text"></span> @:Delivery Note
+                                    }
+                                    else
+                                    {
+                                        <span class="bi bi-file-earmark-image"></span> @:Invoice Image
+                                    }
+                                </h5>
+                                <p class="card-text">
+                                    <strong>File:</strong> @attachment.FileName<br />
+                                    <strong>Size:</strong> @FormatFileSize(attachment.FileSize)<br />
+                                    <strong>Uploaded:</strong> @attachment.UploadedDate.ToString("yyyy-MM-dd HH:mm")
+                                </p>
+                                <a href="@attachment.FilePath" target="_blank" class="btn btn-sm btn-primary">
+                                    <span class="bi bi-download"></span> View/Download
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3>Linked LM Requests</h3>
+        </div>
+        <div class="card-body">
+            @if (CurrentInvoice.InvoiceRequestLinks.Count == 0)
+            {
+                <div class="alert alert-info">No LM Requests linked to this invoice.</div>
+            }
+            else
+            {
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Request Number</th>
+                            <th>Description</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var link in CurrentInvoice.InvoiceRequestLinks.OrderBy(l => l.Request.RequestNumber))
+                        {
+                            <tr>
+                                <td>@link.Request.RequestNumber</td>
+                                <td>@(link.Request.Description ?? "N/A")</td>
+                                <td>@link.Request.Amount.ToString("C")</td>
+                                <td>
+                                    @if (link.Request.IsCompleted ?? false)
+                                    {
+                                        <span class="badge bg-success">Completed</span>
+                                    }
+                                    else if (link.Request.IsCancelled ?? false)
+                                    {
+                                        <span class="badge bg-danger">Cancelled</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-warning">Pending</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <button class="btn btn-primary" @onclick="EditInvoice">
+            <span class="bi bi-pencil"></span> Edit Invoice
+        </button>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int InvoiceId { get; set; }
+
+    private Invoice? CurrentInvoice;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadInvoice();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadInvoice();
+    }
+
+    private async Task LoadInvoice()
+    {
+        CurrentInvoice = await DbContext.Invoices
+            .Include(i => i.OR)
+                .ThenInclude(o => o.ContractContext)
+            .Include(i => i.InvoiceAttachments)
+            .Include(i => i.InvoiceRequestLinks)
+                .ThenInclude(irl => irl.Request)
+            .FirstOrDefaultAsync(i => i.Id == InvoiceId);
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/admin/invoices");
+    }
+
+    private void EditInvoice()
+    {
+        Navigation.NavigateTo("/admin/invoices");
+    }
+
+    private string FormatFileSize(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB" };
+        double len = bytes;
+        int order = 0;
+        while (len >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            len = len / 1024;
+        }
+        return $"{len:0.##} {sizes[order]}";
+    }
+}
