@@ -84,7 +84,7 @@
 
 @code {
     private List<ContractContext> ContractContextsList = new();
-    private ContractContext? EditingContext;
+    private ContractContextFormModel? EditingContext;
     private bool ShowForm = false;
     private string StatusMessage = "";
     private string StatusClass = "";
@@ -109,19 +109,17 @@
 
     private void ShowCreateForm()
     {
-        EditingContext = new ContractContext();
+        EditingContext = new ContractContextFormModel();
         ShowForm = true;
         StatusMessage = "";
     }
 
     private void EditContractContext(ContractContext context)
     {
-        EditingContext = new ContractContext
+        EditingContext = new ContractContextFormModel
         {
             Id = context.Id,
-            ContractName = context.ContractName,
-            CreatedDate = context.CreatedDate,
-            CreatedByUserId = context.CreatedByUserId
+            ContractName = context.ContractName
         };
         ShowForm = true;
         StatusMessage = "";
@@ -143,9 +141,13 @@
             if (EditingContext.Id == 0)
             {
                 // Create new
-                EditingContext.CreatedDate = DateTime.UtcNow;
-                EditingContext.CreatedByUserId = CurrentUserId ?? "unknown";
-                DbContext.ContractContexts.Add(EditingContext);
+                var newContext = new ContractContext
+                {
+                    ContractName = EditingContext.ContractName,
+                    CreatedDate = DateTime.UtcNow,
+                    CreatedByUserId = CurrentUserId ?? "unknown"
+                };
+                DbContext.ContractContexts.Add(newContext);
             }
             else
             {
@@ -173,5 +175,14 @@
             StatusMessage = $"Error saving Contract Context: {ex.Message}";
             StatusClass = "alert-danger";
         }
+    }
+
+    public class ContractContextFormModel
+    {
+        public int Id { get; set; }
+
+        [Required]
+        [MaxLength(200)]
+        public string ContractName { get; set; } = string.Empty;
     }
 }

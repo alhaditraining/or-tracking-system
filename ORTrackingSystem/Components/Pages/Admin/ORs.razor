@@ -134,7 +134,7 @@
 @code {
     private List<OR> ORsList = new();
     private List<ContractContext> ContractContextsList = new();
-    private OR? EditingOR;
+    private ORFormModel? EditingOR;
     private bool ShowForm = false;
     private string StatusMessage = "";
     private string StatusClass = "";
@@ -167,7 +167,7 @@
 
     private void ShowCreateForm()
     {
-        EditingOR = new OR
+        EditingOR = new ORFormModel
         {
             BudgetType = BudgetType.OPS,
             Status = ORStatus.Open
@@ -178,16 +178,14 @@
 
     private void EditOR(OR or)
     {
-        EditingOR = new OR
+        EditingOR = new ORFormModel
         {
             Id = or.Id,
             ORNumber = or.ORNumber,
             ContractContextId = or.ContractContextId,
             BudgetType = or.BudgetType,
             TotalValue = or.TotalValue,
-            Status = or.Status,
-            CreatedDate = or.CreatedDate,
-            CreatedByUserId = or.CreatedByUserId
+            Status = or.Status
         };
         ShowForm = true;
         StatusMessage = "";
@@ -216,9 +214,17 @@
             if (EditingOR.Id == 0)
             {
                 // Create new
-                EditingOR.CreatedDate = DateTime.UtcNow;
-                EditingOR.CreatedByUserId = CurrentUserId ?? "unknown";
-                DbContext.ORs.Add(EditingOR);
+                var newOR = new OR
+                {
+                    ORNumber = EditingOR.ORNumber,
+                    ContractContextId = EditingOR.ContractContextId,
+                    BudgetType = EditingOR.BudgetType,
+                    TotalValue = EditingOR.TotalValue,
+                    Status = EditingOR.Status,
+                    CreatedDate = DateTime.UtcNow,
+                    CreatedByUserId = CurrentUserId ?? "unknown"
+                };
+                DbContext.ORs.Add(newOR);
             }
             else
             {
@@ -262,5 +268,22 @@
             StatusMessage = $"Error saving OR: {ex.Message}";
             StatusClass = "alert-danger";
         }
+    }
+
+    public class ORFormModel
+    {
+        public int Id { get; set; }
+
+        [Required]
+        [MaxLength(100)]
+        public string ORNumber { get; set; } = string.Empty;
+
+        public int ContractContextId { get; set; }
+
+        public BudgetType BudgetType { get; set; }
+
+        public ORStatus Status { get; set; } = ORStatus.Open;
+
+        public decimal TotalValue { get; set; }
     }
 }
