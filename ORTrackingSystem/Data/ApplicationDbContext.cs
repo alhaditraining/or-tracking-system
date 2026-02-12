@@ -28,6 +28,15 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(e => e.ContractName).IsRequired().HasMaxLength(200);
             entity.Property(e => e.CreatedByUserId).IsRequired().HasMaxLength(450);
             entity.Property(e => e.CreatedDate).IsRequired();
+
+            // Unique constraint on ContractName
+            entity.HasIndex(e => e.ContractName).IsUnique();
+
+            // Foreign key to ApplicationUser
+            entity.HasOne(e => e.CreatedByUser)
+                .WithMany()
+                .HasForeignKey(e => e.CreatedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         // OR configuration

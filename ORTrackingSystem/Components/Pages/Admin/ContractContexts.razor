@@ -73,7 +73,7 @@
                 <td>@context.Id</td>
                 <td>@context.ContractName</td>
                 <td>@context.CreatedDate.ToString("yyyy-MM-dd")</td>
-                <td>@context.CreatedByUserId</td>
+                <td>@GetCreatedByDisplayName(context)</td>
                 <td>@context.ORs.Count</td>
                 <td>
                     <button class="btn btn-sm btn-primary" @onclick="() => EditContractContext(context)">Edit</button>
@@ -91,6 +91,10 @@
     private string StatusClass = "";
     private string? CurrentUserId;
 
+    // SQL Server error codes for unique constraint violations
+    private const int SQL_SERVER_DUPLICATE_KEY_ERROR = 2601;
+    private const int SQL_SERVER_UNIQUE_CONSTRAINT_VIOLATION = 2627;
+
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
@@ -104,6 +108,7 @@
     {
         ContractContextsList = await DbContext.ContractContexts
             .Include(c => c.ORs)
+            .Include(c => c.CreatedByUser)
             .OrderByDescending(c => c.CreatedDate)
             .ToListAsync();
     }
@@ -171,11 +176,45 @@
             EditingContext = null;
             await LoadContractContexts();
         }
+        catch (DbUpdateException ex)
+        {
+            // Check if it's a unique constraint violation on ContractName
+            // SQL Server error codes: 2601 (duplicate key), 2627 (unique constraint violation)
+            var sqlException = ex.InnerException as Microsoft.Data.SqlClient.SqlException;
+            if (sqlException != null && (sqlException.Number == SQL_SERVER_DUPLICATE_KEY_ERROR || 
+                                        sqlException.Number == SQL_SERVER_UNIQUE_CONSTRAINT_VIOLATION))
+            {
+                StatusMessage = "A Contract Context with this name already exists.";
+            }
+            else if (ex.InnerException?.Message?.Contains("IX_ContractContexts_ContractName") == true ||
+                     ex.InnerException?.Message?.Contains("duplicate") == true)
+            {
+                // Fallback for other database providers
+                StatusMessage = "A Contract Context with this name already exists.";
+            }
+            else
+            {
+                StatusMessage = $"Error saving Contract Context: {ex.Message}";
+            }
+            StatusClass = "alert-danger";
+        }
         catch (Exception ex)
         {
             StatusMessage = $"Error saving Contract Context: {ex.Message}";
             StatusClass = "alert-danger";
         }
+    }
+
+    private string GetCreatedByDisplayName(ContractContext context)
+    {
+        if (context.CreatedByUser != null)
+        {
+            if (!string.IsNullOrEmpty(context.CreatedByUser.DisplayName))
+                return context.CreatedByUser.DisplayName;
+            if (!string.IsNullOrEmpty(context.CreatedByUser.Email))
+                return context.CreatedByUser.Email;
+        }
+        return context.CreatedByUserId;
     }
 
     public class ContractContextFormModel
