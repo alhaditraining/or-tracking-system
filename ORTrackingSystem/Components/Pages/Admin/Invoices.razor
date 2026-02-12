@@ -13,6 +13,7 @@
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IWebHostEnvironment Environment
+@inject ILogger<Invoices> Logger
 
 <PageTitle>Invoices</PageTitle>
 
@@ -38,7 +39,7 @@
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label class="form-label">OR</label>
-                        <InputSelect @bind-Value="EditingInvoice.ORId" class="form-control" disabled="@(EditingInvoice.Id > 0)">
+                        <InputSelect @bind-Value="EditingInvoice.ORId" class="form-control" disabled="@(EditingInvoice.Id > 0)" @bind-Value:after="OnORChanged">
                             <option value="0">-- Select OR --</option>
                             @foreach (var or in ORsList)
                             {
@@ -254,6 +255,14 @@
         AvailableRequests.Clear();
     }
 
+    private async Task OnORChanged()
+    {
+        if (EditingInvoice != null)
+        {
+            await LoadAvailableRequests(EditingInvoice.ORId);
+        }
+    }
+
     private async Task EditInvoice(Invoice invoice)
     {
         await LoadAvailableRequests(invoice.ORId);
@@ -461,8 +470,12 @@
                         await SaveAttachment(existingInvoice.Id, EditingInvoice.InvoiceImageFile, AttachmentType.InvoiceImage);
                     }
 
-                    // Update request links
-                    existingInvoice.InvoiceRequestLinks.Clear();
+                    // Update request links - properly remove old links
+                    var existingLinks = await DbContext.InvoiceRequestLinks
+                        .Where(irl => irl.InvoiceId == existingInvoice.Id)
+                        .ToListAsync();
+                    DbContext.InvoiceRequestLinks.RemoveRange(existingLinks);
+                    
                     foreach (var requestId in EditingInvoice.SelectedRequestIds)
                     {
                         DbContext.InvoiceRequestLinks.Add(new InvoiceRequestLink
@@ -506,12 +519,20 @@
 
     private async Task SaveAttachment(int invoiceId, IBrowserFile file, AttachmentType attachmentType)
     {
+        // Validate file extension against allowlist
+        var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png", ".gif" };
+        var extension = Path.GetExtension(file.Name).ToLowerInvariant();
+        
+        if (string.IsNullOrEmpty(extension) || !allowedExtensions.Contains(extension))
+        {
+            throw new InvalidOperationException($"File type '{extension}' is not allowed. Allowed types: {string.Join(", ", allowedExtensions)}");
+        }
+
         // Create uploads directory if it doesn't exist
         var uploadsPath = Path.Combine(Environment.WebRootPath, "uploads");
         Directory.CreateDirectory(uploadsPath);
 
-        // Generate safe random filename
-        var extension = Path.GetExtension(file.Name);
+        // Generate safe random filename with validated extension
         var randomFileName = $"{Guid.NewGuid()}{extension}";
         var filePath = Path.Combine(uploadsPath, randomFileName);
 
@@ -548,9 +569,10 @@
                 File.Delete(physicalPath);
             }
         }
-        catch
+        catch (Exception ex)
         {
             // Log error but don't fail the operation
+            Logger.LogError(ex, "Failed to delete physical file at path: {FilePath}", filePath);
         }
     }
 

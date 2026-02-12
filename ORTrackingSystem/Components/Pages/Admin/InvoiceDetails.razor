@@ -220,7 +220,10 @@ else
 
     private void EditInvoice()
     {
-        Navigation.NavigateTo("/admin/invoices");
+        if (CurrentInvoice != null)
+        {
+            Navigation.NavigateTo($"/admin/ors/{CurrentInvoice.ORId}/invoices");
+        }
     }
 
     private string FormatFileSize(long bytes)
