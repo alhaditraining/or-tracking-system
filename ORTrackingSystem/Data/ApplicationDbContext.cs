@@ -153,6 +153,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(e => e.Description).HasMaxLength(500);
             entity.Property(e => e.CreatedByUserId).IsRequired().HasMaxLength(450);
             entity.Property(e => e.CreatedDate).IsRequired();
+
+            // Unique constraint on InvoiceNumber
+            entity.HasIndex(e => e.InvoiceNumber).IsUnique();
         });
 
         // StationeryAttachment configuration

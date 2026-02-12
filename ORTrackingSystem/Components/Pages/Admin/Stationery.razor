@@ -1,0 +1,485 @@
+@page "/admin/stationery"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@using ORTrackingSystem.Data
+@using ORTrackingSystem.Models
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using System.ComponentModel.DataAnnotations
+@attribute [Authorize(Policy = "AdminOnly")]
+@rendermode InteractiveServer
+
+@inject ApplicationDbContext DbContext
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IWebHostEnvironment Environment
+@inject ILogger<Stationery> Logger
+
+<PageTitle>Stationery Invoices</PageTitle>
+
+<h1>Stationery Invoices</h1>
+
+<div class="mb-3">
+    <button class="btn btn-primary" @onclick="ShowCreateForm">
+        <span class="bi bi-plus-circle"></span> Create New Stationery Invoice
+    </button>
+</div>
+
+@if (ShowForm && EditingInvoice != null)
+{
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3>@(EditingInvoice.Id > 0 ? "Edit" : "Create") Stationery Invoice</h3>
+        </div>
+        <div class="card-body">
+            <EditForm Model="EditingInvoice" OnValidSubmit="SaveInvoice" FormName="stationeryInvoiceForm">
+                <DataAnnotationsValidator />
+                <ValidationSummary class="text-danger" />
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Invoice Number</label>
+                        <InputText @bind-Value="EditingInvoice.InvoiceNumber" class="form-control" />
+                        <ValidationMessage For="() => EditingInvoice!.InvoiceNumber" />
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Amount</label>
+                        <InputNumber @bind-Value="EditingInvoice.Amount" class="form-control" step="0.01" />
+                        <ValidationMessage For="() => EditingInvoice!.Amount" />
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-12 mb-3">
+                        <label class="form-label">Description (optional)</label>
+                        <InputTextArea @bind-Value="EditingInvoice.Description" class="form-control" rows="3" />
+                        <ValidationMessage For="() => EditingInvoice!.Description" />
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">
+                            <InputCheckbox @bind-Value="EditingInvoice.IsPaid" />
+                            Is Paid
+                        </label>
+                    </div>
+                </div>
+                
+                @if (EditingInvoice.IsPaid)
+                {
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Paid Date</label>
+                            <InputDate @bind-Value="EditingInvoice.PaidDate" class="form-control" />
+                            <ValidationMessage For="() => EditingInvoice!.PaidDate" />
+                        </div>
+                    </div>
+                }
+
+                <div class="mb-3">
+                    <label class="form-label">Delivery Note (required)</label>
+                    <InputFile OnChange="@(e => HandleFileSelected(e, AttachmentType.DeliveryNote))" class="form-control" accept="image/*,.pdf" />
+                    @if (!string.IsNullOrEmpty(EditingInvoice.DeliveryNoteFileName))
+                    {
+                        <div class="text-success mt-1">
+                            <span class="bi bi-check-circle"></span> @EditingInvoice.DeliveryNoteFileName
+                        </div>
+                    }
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Invoice Image (required)</label>
+                    <InputFile OnChange="@(e => HandleFileSelected(e, AttachmentType.InvoiceImage))" class="form-control" accept="image/*,.pdf" />
+                    @if (!string.IsNullOrEmpty(EditingInvoice.InvoiceImageFileName))
+                    {
+                        <div class="text-success mt-1">
+                            <span class="bi bi-check-circle"></span> @EditingInvoice.InvoiceImageFileName
+                        </div>
+                    }
+                </div>
+                
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-success">Save</button>
+                    <button type="button" class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(StatusMessage))
+{
+    <div class="alert @StatusClass" role="alert">
+        @StatusMessage
+    </div>
+}
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Invoice Number</th>
+            <th>Amount</th>
+            <th>Description</th>
+            <th>Is Paid</th>
+            <th>Paid Date</th>
+            <th>Created Date</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var invoice in InvoicesList)
+        {
+            <tr>
+                <td>@invoice.Id</td>
+                <td>@invoice.InvoiceNumber</td>
+                <td>@invoice.Amount.ToString("C")</td>
+                <td>@(invoice.Description ?? "-")</td>
+                <td>
+                    @if (invoice.IsPaid ?? false)
+                    {
+                        <span class="badge bg-success">Yes</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary">No</span>
+                    }
+                </td>
+                <td>@(invoice.PaidDate?.ToString("yyyy-MM-dd") ?? "-")</td>
+                <td>@invoice.CreatedDate.ToString("yyyy-MM-dd")</td>
+                <td>
+                    <button class="btn btn-sm btn-primary me-1" @onclick="() => EditInvoice(invoice)">Edit</button>
+                    <button class="btn btn-sm btn-info" @onclick="() => ViewDetails(invoice.Id)">Details</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private List<StationeryInvoice> InvoicesList = new();
+    private StationeryInvoiceFormModel? EditingInvoice;
+    private bool ShowForm = false;
+    private string StatusMessage = "";
+    private string StatusClass = "";
+    private string? CurrentUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        CurrentUserId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        
+        await LoadInvoices();
+    }
+
+    private async Task LoadInvoices()
+    {
+        InvoicesList = await DbContext.StationeryInvoices
+            .Include(i => i.StationeryAttachments)
+            .OrderByDescending(i => i.CreatedDate)
+            .ToListAsync();
+    }
+
+    private void ShowCreateForm()
+    {
+        EditingInvoice = new StationeryInvoiceFormModel
+        {
+            IsPaid = false
+        };
+        ShowForm = true;
+        StatusMessage = "";
+    }
+
+    private async Task EditInvoice(StationeryInvoice invoice)
+    {
+        EditingInvoice = new StationeryInvoiceFormModel
+        {
+            Id = invoice.Id,
+            InvoiceNumber = invoice.InvoiceNumber,
+            Amount = invoice.Amount,
+            Description = invoice.Description,
+            IsPaid = invoice.IsPaid ?? false,
+            PaidDate = invoice.PaidDate
+        };
+
+        // Load existing attachments
+        var deliveryNote = invoice.StationeryAttachments.FirstOrDefault(a => a.AttachmentType == AttachmentType.DeliveryNote);
+        var invoiceImage = invoice.StationeryAttachments.FirstOrDefault(a => a.AttachmentType == AttachmentType.InvoiceImage);
+        
+        if (deliveryNote != null)
+        {
+            EditingInvoice.DeliveryNoteFileName = deliveryNote.FileName;
+            EditingInvoice.ExistingDeliveryNoteId = deliveryNote.Id;
+        }
+        
+        if (invoiceImage != null)
+        {
+            EditingInvoice.InvoiceImageFileName = invoiceImage.FileName;
+            EditingInvoice.ExistingInvoiceImageId = invoiceImage.Id;
+        }
+
+        ShowForm = true;
+        StatusMessage = "";
+    }
+
+    private void CancelEdit()
+    {
+        ShowForm = false;
+        EditingInvoice = null;
+        StatusMessage = "";
+    }
+
+    private void ViewDetails(int invoiceId)
+    {
+        Navigation.NavigateTo($"/admin/stationery/{invoiceId}");
+    }
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e, AttachmentType attachmentType)
+    {
+        if (EditingInvoice == null) return;
+
+        var file = e.File;
+        if (file == null) return;
+
+        // Validate file size (max 10MB)
+        const long maxFileSize = 10 * 1024 * 1024;
+        if (file.Size > maxFileSize)
+        {
+            StatusMessage = "File size must not exceed 10MB.";
+            StatusClass = "alert-danger";
+            return;
+        }
+
+        if (attachmentType == AttachmentType.DeliveryNote)
+        {
+            EditingInvoice.DeliveryNoteFile = file;
+            EditingInvoice.DeliveryNoteFileName = file.Name;
+        }
+        else if (attachmentType == AttachmentType.InvoiceImage)
+        {
+            EditingInvoice.InvoiceImageFile = file;
+            EditingInvoice.InvoiceImageFileName = file.Name;
+        }
+
+        await Task.CompletedTask;
+    }
+
+    private async Task SaveInvoice()
+    {
+        if (EditingInvoice == null) return;
+
+        // Validate PaidDate when IsPaid is true
+        if (EditingInvoice.IsPaid && EditingInvoice.PaidDate == null)
+        {
+            StatusMessage = "Paid Date is required when the invoice is marked as paid.";
+            StatusClass = "alert-danger";
+            return;
+        }
+
+        // For new invoices, validate both attachments are provided
+        if (EditingInvoice.Id == 0)
+        {
+            if (EditingInvoice.DeliveryNoteFile == null)
+            {
+                StatusMessage = "Delivery Note attachment is required.";
+                StatusClass = "alert-danger";
+                return;
+            }
+
+            if (EditingInvoice.InvoiceImageFile == null)
+            {
+                StatusMessage = "Invoice Image attachment is required.";
+                StatusClass = "alert-danger";
+                return;
+            }
+        }
+
+        try
+        {
+            if (EditingInvoice.Id == 0)
+            {
+                // Create new
+                var newInvoice = new StationeryInvoice
+                {
+                    InvoiceNumber = EditingInvoice.InvoiceNumber,
+                    Amount = EditingInvoice.Amount,
+                    Description = EditingInvoice.Description,
+                    IsPaid = EditingInvoice.IsPaid,
+                    PaidDate = EditingInvoice.IsPaid ? EditingInvoice.PaidDate : null,
+                    CreatedDate = DateTime.UtcNow,
+                    CreatedByUserId = CurrentUserId ?? "unknown"
+                };
+                DbContext.StationeryInvoices.Add(newInvoice);
+                await DbContext.SaveChangesAsync();
+
+                // Save attachments
+                await SaveAttachment(newInvoice.Id, EditingInvoice.DeliveryNoteFile!, AttachmentType.DeliveryNote);
+                await SaveAttachment(newInvoice.Id, EditingInvoice.InvoiceImageFile!, AttachmentType.InvoiceImage);
+            }
+            else
+            {
+                // Update existing
+                var existingInvoice = await DbContext.StationeryInvoices
+                    .FirstOrDefaultAsync(i => i.Id == EditingInvoice.Id);
+                    
+                if (existingInvoice != null)
+                {
+                    existingInvoice.InvoiceNumber = EditingInvoice.InvoiceNumber;
+                    existingInvoice.Amount = EditingInvoice.Amount;
+                    existingInvoice.Description = EditingInvoice.Description;
+                    existingInvoice.IsPaid = EditingInvoice.IsPaid;
+                    existingInvoice.PaidDate = EditingInvoice.IsPaid ? EditingInvoice.PaidDate : null;
+
+                    // Update attachments if new files provided
+                    if (EditingInvoice.DeliveryNoteFile != null)
+                    {
+                        // Delete old attachment if exists
+                        if (EditingInvoice.ExistingDeliveryNoteId > 0)
+                        {
+                            var oldAttachment = await DbContext.StationeryAttachments.FindAsync(EditingInvoice.ExistingDeliveryNoteId);
+                            if (oldAttachment != null)
+                            {
+                                DeletePhysicalFile(oldAttachment.FilePath);
+                                DbContext.StationeryAttachments.Remove(oldAttachment);
+                            }
+                        }
+                        await SaveAttachment(existingInvoice.Id, EditingInvoice.DeliveryNoteFile, AttachmentType.DeliveryNote);
+                    }
+
+                    if (EditingInvoice.InvoiceImageFile != null)
+                    {
+                        // Delete old attachment if exists
+                        if (EditingInvoice.ExistingInvoiceImageId > 0)
+                        {
+                            var oldAttachment = await DbContext.StationeryAttachments.FindAsync(EditingInvoice.ExistingInvoiceImageId);
+                            if (oldAttachment != null)
+                            {
+                                DeletePhysicalFile(oldAttachment.FilePath);
+                                DbContext.StationeryAttachments.Remove(oldAttachment);
+                            }
+                        }
+                        await SaveAttachment(existingInvoice.Id, EditingInvoice.InvoiceImageFile, AttachmentType.InvoiceImage);
+                    }
+
+                    await DbContext.SaveChangesAsync();
+                }
+            }
+            
+            StatusMessage = EditingInvoice.Id == 0 
+                ? "Stationery invoice created successfully."
+                : "Stationery invoice updated successfully.";
+            StatusClass = "alert-success";
+            
+            ShowForm = false;
+            EditingInvoice = null;
+            await LoadInvoices();
+        }
+        catch (DbUpdateException ex)
+        {
+            if (ex.InnerException?.Message.Contains("IX_StationeryInvoices_InvoiceNumber") ?? false)
+            {
+                StatusMessage = "Error: A stationery invoice with this Invoice Number already exists.";
+            }
+            else
+            {
+                StatusMessage = $"Error saving stationery invoice: {ex.Message}";
+            }
+            StatusClass = "alert-danger";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error saving stationery invoice: {ex.Message}";
+            StatusClass = "alert-danger";
+        }
+    }
+
+    private async Task SaveAttachment(int invoiceId, IBrowserFile file, AttachmentType attachmentType)
+    {
+        // Validate file extension against allowlist
+        var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png", ".gif" };
+        var extension = Path.GetExtension(file.Name).ToLowerInvariant();
+        
+        if (string.IsNullOrEmpty(extension) || !allowedExtensions.Contains(extension))
+        {
+            throw new InvalidOperationException($"File type '{extension}' is not allowed. Allowed types: {string.Join(", ", allowedExtensions)}");
+        }
+
+        // Create uploads directory if it doesn't exist
+        var uploadsPath = Path.Combine(Environment.WebRootPath, "uploads");
+        Directory.CreateDirectory(uploadsPath);
+
+        // Generate safe random filename with validated extension
+        var randomFileName = $"{Guid.NewGuid()}{extension}";
+        var filePath = Path.Combine(uploadsPath, randomFileName);
+
+        // Save file to disk
+        using (var stream = new FileStream(filePath, FileMode.Create))
+        {
+            await file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024).CopyToAsync(stream);
+        }
+
+        // Save attachment record to database
+        var attachment = new StationeryAttachment
+        {
+            StationeryInvoiceId = invoiceId,
+            AttachmentType = attachmentType,
+            FilePath = $"/uploads/{randomFileName}",
+            FileName = file.Name,
+            FileSize = file.Size,
+            ContentType = file.ContentType,
+            UploadedDate = DateTime.UtcNow,
+            CreatedByUserId = CurrentUserId ?? "unknown"
+        };
+
+        DbContext.StationeryAttachments.Add(attachment);
+        await DbContext.SaveChangesAsync();
+    }
+
+    private void DeletePhysicalFile(string filePath)
+    {
+        try
+        {
+            var physicalPath = Path.Combine(Environment.WebRootPath, filePath.TrimStart('/'));
+            if (File.Exists(physicalPath))
+            {
+                File.Delete(physicalPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            // Log error but don't fail the operation
+            Logger.LogError(ex, "Failed to delete physical file at path: {FilePath}", filePath);
+        }
+    }
+
+    public class StationeryInvoiceFormModel
+    {
+        public int Id { get; set; }
+
+        [Required]
+        [MaxLength(100)]
+        public string InvoiceNumber { get; set; } = string.Empty;
+
+        [Required]
+        [Range(0.01, double.MaxValue, ErrorMessage = "Amount must be greater than 0")]
+        public decimal Amount { get; set; }
+
+        [MaxLength(500)]
+        public string? Description { get; set; }
+
+        public bool IsPaid { get; set; }
+
+        public DateTime? PaidDate { get; set; }
+
+        public IBrowserFile? DeliveryNoteFile { get; set; }
+        public string? DeliveryNoteFileName { get; set; }
+        public int ExistingDeliveryNoteId { get; set; }
+
+        public IBrowserFile? InvoiceImageFile { get; set; }
+        public string? InvoiceImageFileName { get; set; }
+        public int ExistingInvoiceImageId { get; set; }
+    }
+}
