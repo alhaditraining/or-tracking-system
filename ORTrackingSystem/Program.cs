@@ -36,6 +36,9 @@ builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.Requ
 
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
+// Add services
+builder.Services.AddScoped<ORTrackingSystem.Services.ExportService>();
+
 // Add authorization policies
 builder.Services.AddAuthorization(options =>
 {

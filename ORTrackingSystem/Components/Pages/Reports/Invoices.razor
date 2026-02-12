@@ -8,10 +8,21 @@
 @rendermode InteractiveServer
 
 @inject ApplicationDbContext DbContext
+@inject ORTrackingSystem.Services.ExportService ExportService
+@inject IJSRuntime JSRuntime
 
 <PageTitle>Invoice Reports</PageTitle>
 
 <h1>Invoice Reports</h1>
+
+<div class="mb-3">
+    <button class="btn btn-success me-2" @onclick="ExportToCsv">
+        <span class="bi bi-file-earmark-spreadsheet"></span> Export to CSV
+    </button>
+    <button class="btn btn-primary" @onclick="ExportToExcel">
+        <span class="bi bi-file-earmark-excel"></span> Export to Excel
+    </button>
+</div>
 
 <div class="card mb-4">
     <div class="card-header">
@@ -257,5 +268,25 @@ else
         toDate = null;
         archiveFilter = "";
         await ApplyFilters();
+    }
+    
+    private async Task ExportToCsv()
+    {
+        var fileName = $"report-invoices-{DateTime.Now:yyyyMMdd-HHmmss}.csv";
+        var csvData = ExportService.ExportInvoiceReportsToCsv(invoiceReports);
+        await DownloadFile(fileName, csvData, "text/csv");
+    }
+    
+    private async Task ExportToExcel()
+    {
+        var fileName = $"report-invoices-{DateTime.Now:yyyyMMdd-HHmmss}.xlsx";
+        var excelData = ExportService.ExportInvoiceReportsToExcel(invoiceReports);
+        await DownloadFile(fileName, excelData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    }
+    
+    private async Task DownloadFile(string fileName, byte[] data, string contentType)
+    {
+        var base64 = Convert.ToBase64String(data);
+        await JSRuntime.InvokeVoidAsync("downloadFile", fileName, base64, contentType);
     }
 }
