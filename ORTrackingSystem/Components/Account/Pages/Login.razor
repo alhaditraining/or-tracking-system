@@ -22,37 +22,40 @@
     <MudAlert Severity="Severity.Error" Class="mb-4">@errorMessage</MudAlert>
 }
 
-<EditForm Model="Input" method="post" OnValidSubmit="LoginUser" FormName="login">
+<EditForm Model="@Input" method="post" OnValidSubmit="LoginUser" FormName="login">
     <DataAnnotationsValidator />
-    
-    <MudTextField @bind-Value="Input.Email" 
+
+    <MudTextField @bind-Value="Input.Email"
+                  Name="Input.Email"
                   For="@(() => Input.Email)"
-                  Label="Email" 
+                  Label="Email"
                   Variant="Variant.Outlined"
                   InputType="InputType.Email"
                   Class="mb-4" />
-    
-    <MudTextField @bind-Value="Input.Password" 
+
+    <MudTextField @bind-Value="Input.Password"
+                  Name="Input.Password"
                   For="@(() => Input.Password)"
-                  Label="Password" 
+                  Label="Password"
                   Variant="Variant.Outlined"
                   InputType="InputType.Password"
                   Class="mb-4" />
-    
-    <MudCheckBox @bind-Value="Input.RememberMe" 
-                 Label="Remember me" 
+
+    <MudCheckBox @bind-Value="Input.RememberMe"
+                 Name="Input.RememberMe"
+                 Label="Remember me"
                  Color="Color.Primary"
                  Class="mb-4" />
-    
-    <MudButton ButtonType="ButtonType.Submit" 
-               Variant="Variant.Filled" 
-               Color="Color.Primary" 
+
+    <MudButton ButtonType="ButtonType.Submit"
+               Variant="Variant.Filled"
+               Color="Color.Primary"
                FullWidth="true"
                Size="Size.Large"
                Class="mb-4">
         Log in
     </MudButton>
-    
+
     <MudStack Row="true" Justify="Justify.SpaceBetween">
         <MudLink Href="Account/ForgotPassword" Typo="Typo.body2">Forgot password?</MudLink>
         <MudLink Href="Account/ResendEmailConfirmation" Typo="Typo.body2">Resend confirmation</MudLink>
@@ -66,10 +69,15 @@
     private HttpContext HttpContext { get; set; } = default!;
 
     [SupplyParameterFromForm]
-    private InputModel Input { get; set; } = new();
+    private InputModel? Input { get; set; }
 
     [SupplyParameterFromQuery]
     private string? ReturnUrl { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        Input ??= new();
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -84,7 +92,7 @@
     {
         // This doesn't count login failures towards account lockout
         // To enable password failures to trigger account lockout, set lockoutOnFailure: true
-        var result = await SignInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
+        var result = await SignInManager.PasswordSignInAsync(Input!.Email, Input!.Password, Input!.RememberMe, lockoutOnFailure: false);
         if (result.Succeeded)
         {
             Logger.LogInformation("User logged in.");
@@ -94,7 +102,7 @@
         {
             RedirectManager.RedirectTo(
                 "Account/LoginWith2fa",
-                new() { ["returnUrl"] = ReturnUrl, ["rememberMe"] = Input.RememberMe });
+                new() { ["returnUrl"] = ReturnUrl, ["rememberMe"] = Input!.RememberMe });
         }
         else if (result.IsLockedOut)
         {
