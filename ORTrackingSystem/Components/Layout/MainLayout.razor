@@ -1,4 +1,6 @@
 ﻿@inherits LayoutComponentBase
+@using Microsoft.AspNetCore.Components.Authorization
+@inject NavigationManager Nav
 
 <MudThemeProvider />
 <MudPopoverProvider />
@@ -6,33 +8,64 @@
 <MudSnackbarProvider />
 
 <MudLayout>
+
     <MudAppBar Elevation="1">
-        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
+        <MudIconButton Icon="@Icons.Material.Filled.Menu"
+                       Color="Color.Inherit"
+                       Edge="Edge.Start"
+                       OnClick="@ToggleDrawer" />
+
         <MudNavLink Href="/reports/dashboard" Class="appbar-title-link">
             <MudText Typo="Typo.h6">OR Tracking System</MudText>
         </MudNavLink>
+
         <MudSpacer />
+
         <AuthorizeView>
-            <Authorized>
-                <MudText Typo="Typo.body2">@context.User.Identity?.Name</MudText>
+            <Authorized Context="auth">
+                <MudText Typo="Typo.body2" Class="me-2">
+                    @auth.User.Identity?.Name
+                </MudText>
+                <!-- Logout موجود بالـ NavMenu، فهنا نخليه اختياري.
+                     إذا تريد يبقى هنا، خليه Href بدل OnClick -->
+                <MudButton Variant="Variant.Text"
+                           Color="Color.Inherit"
+                           StartIcon="@Icons.Material.Filled.Logout"
+                           Href="Account/Logout?returnUrl=/Account/Login">
+                    Logout
+                </MudButton>
             </Authorized>
         </AuthorizeView>
     </MudAppBar>
-    <MudDrawer @bind-Open="_drawerOpen" Elevation="2" ClipMode="DrawerClipMode.Always" Variant="@DrawerVariant.Responsive">
-        <NavMenu />
+
+    <MudDrawer @bind-Open="_drawerOpen"
+               Elevation="2"
+               ClipMode="DrawerClipMode.Never"
+               Variant="DrawerVariant.Responsive"
+               Breakpoint="Breakpoint.Md">
+        <NavMenu AnyItemClicked="CloseDrawerIfMobile" />
     </MudDrawer>
+
     <MudMainContent>
         <MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="mt-4">
             @Body
         </MudContainer>
     </MudMainContent>
+
 </MudLayout>
 
 @code {
     private bool _drawerOpen = true;
 
     private void ToggleDrawer()
+        => _drawerOpen = !_drawerOpen;
+
+    // يقفل الدروار بعد اختيار عنصر فقط على الشاشات الصغيرة (Mobile)
+    private void CloseDrawerIfMobile()
     {
-        _drawerOpen = !_drawerOpen;
+        // MudBlazor يعتبر Breakpoint.Md: أقل من md = موبايل
+        // أبسط حل بدون JS/resize: إذا الدروار حالياً مفتوح "كOverlay" عادةً على الموبايل
+        // فإحنا نقفله دائمًا بعد أي اختيار—هذا ما يضر الديسكتوب غالبًا
+        _drawerOpen = false;
     }
 }

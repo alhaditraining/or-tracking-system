@@ -1,16 +1,15 @@
-﻿@implements IDisposable
-
-@inject NavigationManager NavigationManager
-@inject IJSRuntime JSRuntime
+﻿@using Microsoft.AspNetCore.Components
+@inject NavigationManager Nav
 
 <MudNavMenu>
+
     <AuthorizeView Policy="ViewerOrAdmin">
         <Authorized>
             <MudNavGroup Title="Reports" Icon="@Icons.Material.Filled.Assessment" Expanded="true">
-                <MudNavLink Href="reports/dashboard" Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
-                <MudNavLink Href="reports/ors" Icon="@Icons.Material.Filled.AccountBalance">OR Reports</MudNavLink>
-                <MudNavLink Href="reports/invoices" Icon="@Icons.Material.Filled.Receipt">Invoice Reports</MudNavLink>
-                <MudNavLink Href="reports/stationery" Icon="@Icons.Material.Filled.Edit">Stationery Reports</MudNavLink>
+                <MudNavLink Href="/reports/dashboard" Icon="@Icons.Material.Filled.Dashboard" OnClick="NotifyClicked">Dashboard</MudNavLink>
+                <MudNavLink Href="/reports/ors" Icon="@Icons.Material.Filled.AccountBalance" OnClick="NotifyClicked">OR Reports</MudNavLink>
+                <MudNavLink Href="/reports/invoices" Icon="@Icons.Material.Filled.Receipt" OnClick="NotifyClicked">Invoice Reports</MudNavLink>
+                <MudNavLink Href="/reports/stationery" Icon="@Icons.Material.Filled.Edit" OnClick="NotifyClicked">Stationery Reports</MudNavLink>
             </MudNavGroup>
         </Authorized>
     </AuthorizeView>
@@ -19,10 +18,10 @@
         <Authorized>
             <MudDivider Class="my-2" />
             <MudNavGroup Title="Administration" Icon="@Icons.Material.Filled.AdminPanelSettings" Expanded="true">
-                <MudNavLink Href="admin/users" Icon="@Icons.Material.Filled.People">User Management</MudNavLink>
-                <MudNavLink Href="admin/contract-contexts" Icon="@Icons.Material.Filled.Description">Contract Contexts</MudNavLink>
-                <MudNavLink Href="admin/ors" Icon="@Icons.Material.Filled.AccountBalance">ORs</MudNavLink>
-                <MudNavLink Href="admin/requests" Icon="@Icons.Material.Filled.Assignment">LM Requests</MudNavLink>
+                <MudNavLink Href="/admin/users" Icon="@Icons.Material.Filled.People" OnClick="NotifyClicked">User Management</MudNavLink>
+                <MudNavLink Href="/admin/contract-contexts" Icon="@Icons.Material.Filled.Description" OnClick="NotifyClicked">Contract Contexts</MudNavLink>
+                <MudNavLink Href="/admin/ors" Icon="@Icons.Material.Filled.AccountBalance" OnClick="NotifyClicked">ORs</MudNavLink>
+                <MudNavLink Href="/admin/requests" Icon="@Icons.Material.Filled.Assignment" OnClick="NotifyClicked">LM Requests</MudNavLink>
             </MudNavGroup>
         </Authorized>
     </AuthorizeView>
@@ -30,43 +29,37 @@
     <AuthorizeView>
         <Authorized>
             <MudDivider Class="my-2" />
-            <MudNavLink Href="Account/Manage" Icon="@Icons.Material.Filled.Person">Account</MudNavLink>
-            <MudNavLink OnClick="@OnLogoutClick" Icon="@Icons.Material.Filled.Logout">Logout</MudNavLink>
+
+            <!-- Account SSR -->
+            <MudNavLink OnClick="GoAccount" Icon="@Icons.Material.Filled.Person">
+                Account
+            </MudNavLink>
+
+            <!-- ✅ Logout endpoint MUST be ForceLoad -->
+            <MudNavLink Href="/logout" ForceLoad="true" Icon="@Icons.Material.Filled.Logout" OnClick="NotifyClicked">
+                Logout
+            </MudNavLink>
         </Authorized>
+
         <NotAuthorized>
             <MudDivider Class="my-2" />
-            <MudNavLink Href="Account/Login" Icon="@Icons.Material.Filled.Login">Login</MudNavLink>
+
+            <!-- ✅ Login endpoint MUST be ForceLoad -->
+            <MudNavLink Href="/login" ForceLoad="true" Icon="@Icons.Material.Filled.Login" OnClick="NotifyClicked">
+                Login
+            </MudNavLink>
         </NotAuthorized>
     </AuthorizeView>
+
 </MudNavMenu>
 
-<form id="logoutForm" action="Account/Logout" method="post" style="display: none;">
-    <AntiforgeryToken />
-    <input type="hidden" name="ReturnUrl" value="@currentUrl" />
-</form>
-
 @code {
-    private string? currentUrl;
+    [Parameter] public EventCallback AnyItemClicked { get; set; }
+    private Task NotifyClicked() => AnyItemClicked.InvokeAsync();
 
-    protected override void OnInitialized()
+    private async Task GoAccount()
     {
-        currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
-        NavigationManager.LocationChanged += OnLocationChanged;
-    }
-
-    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
-    {
-        currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
-        StateHasChanged();
-    }
-
-    private async Task OnLogoutClick()
-    {
-        await JSRuntime.InvokeVoidAsync("submitLogoutForm");
-    }
-
-    public void Dispose()
-    {
-        NavigationManager.LocationChanged -= OnLocationChanged;
+        await AnyItemClicked.InvokeAsync();
+        Nav.NavigateTo("/Account/Manage", forceLoad: true);
     }
 }

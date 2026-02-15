@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -8,42 +9,58 @@ using ORTrackingSystem.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// -------------------------
+// Services
+// -------------------------
+
+// Razor Components (Blazor Server interactive)
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-// Add MudBlazor services
+// MudBlazor
 builder.Services.AddMudServices();
 
+// Authentication state for Blazor
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<IdentityUserAccessor>();
 builder.Services.AddScoped<IdentityRedirectManager>();
 builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
 
+// Cookies auth (Identity)
 builder.Services.AddAuthentication(options =>
-    {
-        options.DefaultScheme = IdentityConstants.ApplicationScheme;
-        options.DefaultSignInScheme = IdentityConstants.ExternalScheme;
-    })
-    .AddIdentityCookies();
+{
+    options.DefaultScheme = IdentityConstants.ApplicationScheme;
+    options.DefaultSignInScheme = IdentityConstants.ExternalScheme;
+})
+.AddIdentityCookies();
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+// DB
+var connectionString =
+    builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
+
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
-builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = true)
-    .AddRoles<IdentityRole>()
-    .AddEntityFrameworkStores<ApplicationDbContext>()
-    .AddSignInManager()
-    .AddDefaultTokenProviders();
+// IdentityCore + Roles + SignInManager + Tokens
+builder.Services.AddIdentityCore<ApplicationUser>(options =>
+{
+    options.SignIn.RequireConfirmedAccount = true;
+})
+.AddRoles<IdentityRole>()
+.AddEntityFrameworkStores<ApplicationDbContext>()
+.AddSignInManager()
+.AddDefaultTokenProviders();
 
+// Email sender (No-op)
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
-// Add services
+// App services
 builder.Services.AddScoped<ORTrackingSystem.Services.ExportService>();
 
-// Add authorization policies
+// Authorization policies
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
@@ -52,7 +69,10 @@ builder.Services.AddAuthorization(options =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// -------------------------
+// Middleware pipeline
+// -------------------------
+
 if (app.Environment.IsDevelopment())
 {
     app.UseMigrationsEndPoint();
@@ -60,22 +80,62 @@ if (app.Environment.IsDevelopment())
 else
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
 app.UseHttpsRedirection();
-
 app.UseStaticFiles();
+
+// ✅ مهم جدًا: Authentication/Authorization قبل Antiforgery و قبل MapRazorComponents
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.UseAntiforgery();
 
-app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
+// -------------------------
+// Extra endpoints (SSR-safe)
+// -------------------------
 
-// Add additional endpoints required by the Identity /Account Razor components.
+// ✅ Logout endpoint (GET) - ثابت ومضمون، بدون 405 وبدون returnUrl مشاكل
+app.MapGet("/logout", async (HttpContext ctx) =>
+{
+    // sign out from both schemes (safe)
+    await ctx.SignOutAsync(IdentityConstants.ApplicationScheme);
+    await ctx.SignOutAsync(IdentityConstants.ExternalScheme);
+
+    // hard-delete common identity cookie (extra safety)
+    ctx.Response.Cookies.Delete(".AspNetCore.Identity.Application");
+
+    // avoid caching
+    ctx.Response.Headers.CacheControl = "no-store";
+
+    // redirect to login (SSR)
+    ctx.Response.Redirect("/Account/Login");
+});
+
+// ✅ Login shortcut (GET) يضمن returnUrl محلي فقط
+app.MapGet("/login", (HttpContext ctx) =>
+{
+    // رجّع للداشبورد بعد الدخول
+    ctx.Response.Redirect("/Account/Login?returnUrl=/reports/dashboard");
+});
+
+// ✅ Debug ping (اختياري - احذفه بعد ما تتأكد كلشي تمام)
+// app.MapGet("/__ping", () => Results.Text("PING OK"));
+
+// -------------------------
+// Endpoints
+// -------------------------
+
+app.MapRazorComponents<App>()
+   .AddInteractiveServerRenderMode();
+
+// Identity endpoints for /Account Razor components
 app.MapAdditionalIdentityEndpoints();
 
-// Seed roles and admin user
+// -------------------------
+// Seed roles/admin
+// -------------------------
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
