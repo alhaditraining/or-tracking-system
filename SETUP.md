@@ -6,7 +6,7 @@ This milestone implements the basic authentication and authorization infrastruct
 
 ## Prerequisites
 
-- .NET 8 SDK
+- .NET 9 SDK
 - SQL Server (LocalDB, Express, or Full)
 - Visual Studio 2022 or VS Code
 

@@ -36,7 +36,7 @@ Every invoice must have **exactly two attachments**:
 - Invoice: `IsPaid`, `PaidDate` (optional)
 
 ## Tech Stack
-- **Blazor Server (.NET 8)**
+- **Blazor Server (.NET 9)**
 - **SQL Server**
 - **ASP.NET Core Identity** (roles: Admin / Viewer)
 - Attachments stored on server filesystem + metadata in DB
@@ -44,7 +44,7 @@ Every invoice must have **exactly two attachments**:
 ## Quick Start
 
 ### Prerequisites
-- .NET 8 SDK
+- .NET 9 SDK
 - SQL Server (LocalDB, Express, or Full)
 
 ### Setup and Run
