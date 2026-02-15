@@ -1,4 +1,4 @@
-﻿@attribute [ExcludeFromInteractiveRouting]
+﻿@rendermode InteractiveServer
 @page "/Account/Login"
 @layout ORTrackingSystem.Components.Layout.LoginLayout
 
@@ -22,7 +22,7 @@
     <MudAlert Severity="Severity.Error" Class="mb-4">@errorMessage</MudAlert>
 }
 
-<EditForm Model="Input" method="post" OnValidSubmit="LoginUser" FormName="login">
+<EditForm Model="@Input" method="post" OnValidSubmit="LoginUser" FormName="login">
     <DataAnnotationsValidator />
 
     <MudTextField @bind-Value="Input.Email"
