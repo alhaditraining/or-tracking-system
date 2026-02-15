@@ -69,7 +69,7 @@
 
     private async Task OnLogoutClick()
     {
-        await JSRuntime.InvokeVoidAsync("eval", "document.getElementById('logoutForm').submit()");
+        await JSRuntime.InvokeVoidAsync("submitLogoutForm");
     }
 
     public void Dispose()
