@@ -4,13 +4,8 @@
 @inject IJSRuntime JSRuntime
 
 <MudNavMenu>
-    <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</MudNavLink>
-    <MudNavLink Href="counter" Icon="@Icons.Material.Filled.Add">Counter</MudNavLink>
-    <MudNavLink Href="weather" Icon="@Icons.Material.Filled.CloudQueue">Weather</MudNavLink>
-
     <AuthorizeView Policy="ViewerOrAdmin">
         <Authorized>
-            <MudDivider Class="my-2" />
             <MudNavGroup Title="Reports" Icon="@Icons.Material.Filled.Assessment" Expanded="true">
                 <MudNavLink Href="reports/dashboard" Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
                 <MudNavLink Href="reports/ors" Icon="@Icons.Material.Filled.AccountBalance">OR Reports</MudNavLink>
@@ -28,8 +23,6 @@
                 <MudNavLink Href="admin/contract-contexts" Icon="@Icons.Material.Filled.Description">Contract Contexts</MudNavLink>
                 <MudNavLink Href="admin/ors" Icon="@Icons.Material.Filled.AccountBalance">ORs</MudNavLink>
                 <MudNavLink Href="admin/requests" Icon="@Icons.Material.Filled.Assignment">LM Requests</MudNavLink>
-                <MudNavLink Href="admin/invoices" Icon="@Icons.Material.Filled.Receipt">Invoices</MudNavLink>
-                <MudNavLink Href="admin/stationery" Icon="@Icons.Material.Filled.Edit">Stationery Invoices</MudNavLink>
             </MudNavGroup>
         </Authorized>
     </AuthorizeView>
