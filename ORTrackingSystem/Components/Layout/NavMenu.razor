@@ -1,6 +1,7 @@
 ﻿@implements IDisposable
 
 @inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
 
 <MudNavMenu>
     <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</MudNavLink>
@@ -46,6 +47,11 @@
     </AuthorizeView>
 </MudNavMenu>
 
+<form id="logoutForm" action="Account/Logout" method="post" style="display: none;">
+    <AntiforgeryToken />
+    <input type="hidden" name="ReturnUrl" value="@currentUrl" />
+</form>
+
 @code {
     private string? currentUrl;
 
@@ -61,9 +67,9 @@
         StateHasChanged();
     }
 
-    private void OnLogoutClick()
+    private async Task OnLogoutClick()
     {
-        NavigationManager.NavigateTo("Account/Logout", forceLoad: true);
+        await JSRuntime.InvokeVoidAsync("eval", "document.getElementById('logoutForm').submit()");
     }
 
     public void Dispose()
