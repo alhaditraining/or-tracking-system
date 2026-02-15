@@ -8,9 +8,7 @@
 <MudLayout>
     <MudAppBar Elevation="1">
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
-        <MudLink Href="/reports/dashboard" Color="Color.Inherit" Underline="Underline.None">
-            <MudText Typo="Typo.h6">OR Tracking System</MudText>
-        </MudLink>
+        <MudText Typo="Typo.h6">OR Tracking System</MudText>
         <MudSpacer />
         <AuthorizeView>
             <Authorized>
@@ -18,7 +16,7 @@
             </Authorized>
         </AuthorizeView>
     </MudAppBar>
-    <MudDrawer @bind-Open="_drawerOpen" Elevation="2" ClipMode="DrawerClipMode.Always" Variant="DrawerVariant.Responsive">
+    <MudDrawer @bind-Open="_drawerOpen" Elevation="2" ClipMode="DrawerClipMode.Always">
         <NavMenu />
     </MudDrawer>
     <MudMainContent>
