@@ -1,122 +1,56 @@
 ﻿@implements IDisposable
 
 @inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
 
-<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">ORTrackingSystem</a>
-    </div>
-</div>
+<MudNavMenu>
+    <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</MudNavLink>
+    <MudNavLink Href="counter" Icon="@Icons.Material.Filled.Add">Counter</MudNavLink>
+    <MudNavLink Href="weather" Icon="@Icons.Material.Filled.CloudQueue">Weather</MudNavLink>
 
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+    <AuthorizeView Policy="ViewerOrAdmin">
+        <Authorized>
+            <MudDivider Class="my-2" />
+            <MudNavGroup Title="Reports" Icon="@Icons.Material.Filled.Assessment" Expanded="true">
+                <MudNavLink Href="reports/dashboard" Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
+                <MudNavLink Href="reports/ors" Icon="@Icons.Material.Filled.AccountBalance">OR Reports</MudNavLink>
+                <MudNavLink Href="reports/invoices" Icon="@Icons.Material.Filled.Receipt">Invoice Reports</MudNavLink>
+                <MudNavLink Href="reports/stationery" Icon="@Icons.Material.Filled.Edit">Stationery Reports</MudNavLink>
+            </MudNavGroup>
+        </Authorized>
+    </AuthorizeView>
 
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
+    <AuthorizeView Policy="AdminOnly">
+        <Authorized>
+            <MudDivider Class="my-2" />
+            <MudNavGroup Title="Administration" Icon="@Icons.Material.Filled.AdminPanelSettings" Expanded="true">
+                <MudNavLink Href="admin/users" Icon="@Icons.Material.Filled.People">User Management</MudNavLink>
+                <MudNavLink Href="admin/contract-contexts" Icon="@Icons.Material.Filled.Description">Contract Contexts</MudNavLink>
+                <MudNavLink Href="admin/ors" Icon="@Icons.Material.Filled.AccountBalance">ORs</MudNavLink>
+                <MudNavLink Href="admin/requests" Icon="@Icons.Material.Filled.Assignment">LM Requests</MudNavLink>
+                <MudNavLink Href="admin/invoices" Icon="@Icons.Material.Filled.Receipt">Invoices</MudNavLink>
+                <MudNavLink Href="admin/stationery" Icon="@Icons.Material.Filled.Edit">Stationery Invoices</MudNavLink>
+            </MudNavGroup>
+        </Authorized>
+    </AuthorizeView>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div>
+    <AuthorizeView>
+        <Authorized>
+            <MudDivider Class="my-2" />
+            <MudNavLink Href="Account/Manage" Icon="@Icons.Material.Filled.Person">Account</MudNavLink>
+            <MudNavLink OnClick="@OnLogoutClick" Icon="@Icons.Material.Filled.Logout">Logout</MudNavLink>
+        </Authorized>
+        <NotAuthorized>
+            <MudDivider Class="my-2" />
+            <MudNavLink Href="Account/Login" Icon="@Icons.Material.Filled.Login">Login</MudNavLink>
+        </NotAuthorized>
+    </AuthorizeView>
+</MudNavMenu>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
-            </NavLink>
-        </div>
-
-        <AuthorizeView Policy="ViewerOrAdmin">
-            <Authorized>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="reports/dashboard">
-                        <span class="bi bi-speedometer2" aria-hidden="true"></span> Dashboard
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="reports/ors">
-                        <span class="bi bi-cash-stack" aria-hidden="true"></span> OR Reports
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="reports/invoices">
-                        <span class="bi bi-receipt" aria-hidden="true"></span> Invoice Reports
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="reports/stationery">
-                        <span class="bi bi-pencil-square" aria-hidden="true"></span> Stationery Reports
-                    </NavLink>
-                </div>
-            </Authorized>
-        </AuthorizeView>
-
-        <AuthorizeView Policy="AdminOnly">
-            <Authorized>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="admin/users">
-                        <span class="bi bi-people-nav-menu" aria-hidden="true"></span> User Management
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="admin/contract-contexts">
-                        <span class="bi bi-file-text" aria-hidden="true"></span> Contract Contexts
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="admin/ors">
-                        <span class="bi bi-cash-stack" aria-hidden="true"></span> ORs
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="admin/requests">
-                        <span class="bi bi-card-checklist" aria-hidden="true"></span> LM Requests
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="admin/invoices">
-                        <span class="bi bi-receipt" aria-hidden="true"></span> Invoices
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="admin/stationery">
-                        <span class="bi bi-pencil-square" aria-hidden="true"></span> Stationery Invoices
-                    </NavLink>
-                </div>
-            </Authorized>
-        </AuthorizeView>
-
-        <AuthorizeView>
-            <Authorized>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="Account/Manage">
-                        <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span> @context.User.Identity?.Name
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <form action="Account/Logout" method="post">
-                        <AntiforgeryToken />
-                        <input type="hidden" name="ReturnUrl" value="@currentUrl" />
-                        <button type="submit" class="nav-link">
-                            <span class="bi bi-arrow-bar-left-nav-menu" aria-hidden="true"></span> Logout
-                        </button>
-                    </form>
-                </div>
-            </Authorized>
-            <NotAuthorized>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="Account/Login">
-                        <span class="bi bi-person-badge-nav-menu" aria-hidden="true"></span> Login
-                    </NavLink>
-                </div>
-            </NotAuthorized>
-        </AuthorizeView>
-    </nav>
-</div>
+<form id="logoutForm" action="Account/Logout" method="post" style="display: none;">
+    <AntiforgeryToken />
+    <input type="hidden" name="ReturnUrl" value="@currentUrl" />
+</form>
 
 @code {
     private string? currentUrl;
@@ -133,9 +67,13 @@
         StateHasChanged();
     }
 
+    private async Task OnLogoutClick()
+    {
+        await JSRuntime.InvokeVoidAsync("submitLogoutForm");
+    }
+
     public void Dispose()
     {
         NavigationManager.LocationChanged -= OnLocationChanged;
     }
 }
-
