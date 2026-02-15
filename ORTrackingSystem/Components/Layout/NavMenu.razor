@@ -40,7 +40,7 @@
     </AuthorizeView>
 </MudNavMenu>
 
-<form id="logoutForm" action="Account/Logout" method="post" style="display: none;">
+<form id="logoutForm" action="/Account/Logout" method="post" style="display: none;">
     <AntiforgeryToken />
     <input type="hidden" name="ReturnUrl" value="@currentUrl" />
 </form>
@@ -62,7 +62,15 @@
 
     private async Task OnLogoutClick()
     {
-        await JSRuntime.InvokeVoidAsync("submitLogoutForm");
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("submitLogoutForm");
+        }
+        catch
+        {
+            // Fallback: navigate directly to logout when JS Interop is unavailable (e.g., static SSR mode)
+            NavigationManager.NavigateTo("/Account/Logout", forceLoad: true);
+        }
     }
 
     public void Dispose()
