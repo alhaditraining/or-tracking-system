@@ -59,3 +59,34 @@ h1:focus {
     text-decoration: none;
     opacity: 0.8;
 }
+
+/* ===== Fix bootstrap vs MudBlazor (Login only) ===== */
+
+/* Bootstrap can mess inputs/labels in MudTextField (overlap / wrong line-height) */
+.login-scope .mud-input-slot > input {
+    line-height: 1.4 !important;
+    padding-top: 14px !important;
+    padding-bottom: 14px !important;
+}
+
+/* Make sure label never blocks clicking */
+.login-scope .mud-input-label {
+    pointer-events: none !important;
+}
+
+/* Fix checkbox click (bootstrap sometimes steals pointer-events / z-index) */
+.login-scope .mud-checkbox,
+.login-scope .mud-checkbox * {
+    pointer-events: auto !important;
+}
+
+    .login-scope .mud-checkbox .mud-button-root {
+        pointer-events: auto !important;
+    }
+
+    .login-scope .mud-checkbox .mud-icon-root,
+    .login-scope .mud-checkbox .mud-check-icon {
+        position: relative;
+        z-index: 5;
+    }
+

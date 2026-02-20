@@ -1,27 +1,27 @@
 ﻿@page "/Account/Login"
+@attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+
 @layout ORTrackingSystem.Components.Layout.LoginLayout
 
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Authentication
 @using Microsoft.AspNetCore.Identity
 @using ORTrackingSystem.Data
+@using MudBlazor
 
 @inject SignInManager<ApplicationUser> SignInManager
 @inject ILogger<Login> Logger
-@inject NavigationManager NavigationManager
 @inject IdentityRedirectManager RedirectManager
+@inject ISnackbar Snackbar
 
 <PageTitle>Log in</PageTitle>
 
-<MudText Typo="Typo.h4" Align="Align.Center" GutterBottom="true">OR Tracking System</MudText>
-<MudText Typo="Typo.h6" Align="Align.Center" GutterBottom="true" Class="mb-6">Log in</MudText>
+<MudText Typo="Typo.h5" Align="Align.Center" GutterBottom="true">OR Tracking System</MudText>
+<MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Secondary" Class="mb-6">
+    Authorized Access Only
+</MudText>
 
-@if (!string.IsNullOrEmpty(errorMessage))
-{
-    <MudAlert Severity="Severity.Error" Class="mb-4">@errorMessage</MudAlert>
-}
-
-<EditForm Model="@Input" method="post" OnValidSubmit="LoginUser" FormName="login">
+<EditForm Model="@Input" method="post" OnValidSubmit="LoginUserAsync" FormName="login">
     <DataAnnotationsValidator />
 
     <MudTextField @bind-Value="Input.Email"
@@ -30,7 +30,10 @@
                   Label="Email"
                   Variant="Variant.Outlined"
                   InputType="InputType.Email"
-                  Class="mb-4" />
+                  FullWidth="true"
+                  Margin="Margin.Dense"
+                  Disabled="@_busy"
+                  Class="mb-3" />
 
     <MudTextField @bind-Value="Input.Password"
                   Name="Input.Password"
@@ -38,12 +41,16 @@
                   Label="Password"
                   Variant="Variant.Outlined"
                   InputType="InputType.Password"
-                  Class="mb-4" />
+                  FullWidth="true"
+                  Margin="Margin.Dense"
+                  Disabled="@_busy"
+                  Class="mb-2" />
 
     <MudCheckBox @bind-Value="Input.RememberMe"
                  Name="Input.RememberMe"
                  Label="Remember me"
                  Color="Color.Primary"
+                 Disabled="@_busy"
                  Class="mb-4" />
 
     <MudButton ButtonType="ButtonType.Submit"
@@ -51,18 +58,29 @@
                Color="Color.Primary"
                FullWidth="true"
                Size="Size.Large"
-               Class="mb-4">
-        Log in
+               Disabled="@_busy">
+        @if (_busy)
+        {
+            <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="me-2" />
+            <span>Signing in...</span>
+        }
+        else
+        {
+            <span>Login</span>
+        }
     </MudButton>
 
+    <MudDivider Class="my-4" />
+
     <MudStack Row="true" Justify="Justify.SpaceBetween">
-        <MudLink Href="Account/ForgotPassword" Typo="Typo.body2">Forgot password?</MudLink>
-        <MudLink Href="Account/ResendEmailConfirmation" Typo="Typo.body2">Resend confirmation</MudLink>
+        <MudLink Href="/Account/ForgotPassword" Typo="Typo.body2">Forgot password?</MudLink>
+        <MudLink Href="/Account/ResendEmailConfirmation" Typo="Typo.body2">Resend confirmation</MudLink>
     </MudStack>
 </EditForm>
 
 @code {
-    private string? errorMessage;
+    private bool _busy;
+    private string? _returnUrl;
 
     [CascadingParameter]
     private HttpContext HttpContext { get; set; } = default!;
@@ -70,61 +88,81 @@
     [SupplyParameterFromForm]
     private InputModel? Input { get; set; }
 
-    [SupplyParameterFromQuery]
-    private string? ReturnUrl { get; set; }
-
     protected override void OnParametersSet()
     {
         Input ??= new();
+
+        // ✅ اقرأ returnUrl بأي حالة (ReturnUrl أو returnUrl)
+        var q = HttpContext?.Request?.Query;
+        _returnUrl = q?["returnUrl"].ToString();
+        if (string.IsNullOrWhiteSpace(_returnUrl))
+            _returnUrl = q?["ReturnUrl"].ToString();
+
+        // ✅ نظّف returnUrl (لا ترجع للـ Account/Login)
+        if (string.IsNullOrWhiteSpace(_returnUrl) ||
+            _returnUrl.StartsWith("/Account", StringComparison.OrdinalIgnoreCase) ||
+            _returnUrl.Contains("/Account/Login", StringComparison.OrdinalIgnoreCase))
+        {
+            _returnUrl = "/reports/dashboard";
+        }
     }
 
     protected override async Task OnInitializedAsync()
     {
         if (HttpMethods.IsGet(HttpContext.Request.Method))
         {
-            // Clear the existing external cookie to ensure a clean login process
             await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
         }
     }
 
-    public async Task LoginUser()
+    private async Task LoginUserAsync()
     {
-        // This doesn't count login failures towards account lockout
-        // To enable password failures to trigger account lockout, set lockoutOnFailure: true
-        var result = await SignInManager.PasswordSignInAsync(Input!.Email, Input!.Password, Input!.RememberMe, lockoutOnFailure: false);
-        if (result.Succeeded)
+        if (_busy) return;
+
+        _busy = true;
+        try
         {
-            Logger.LogInformation("User logged in.");
-            RedirectManager.RedirectTo(ReturnUrl);
+            var result = await SignInManager.PasswordSignInAsync(
+                Input!.Email,
+                Input!.Password,
+                Input!.RememberMe,
+                lockoutOnFailure: false);
+
+            if (result.Succeeded)
+            {
+                Logger.LogInformation("User logged in.");
+                RedirectManager.RedirectTo(_returnUrl);
+            }
+            else if (result.RequiresTwoFactor)
+            {
+                RedirectManager.RedirectTo(
+                    "Account/LoginWith2fa",
+                    new() { ["ReturnUrl"] = _returnUrl, ["rememberMe"] = Input!.RememberMe });
+            }
+            else if (result.IsLockedOut)
+            {
+                Logger.LogWarning("User account locked out.");
+                RedirectManager.RedirectTo("Account/Lockout");
+            }
+            else
+            {
+                Snackbar.Add("Invalid email or password.", Severity.Error);
+            }
         }
-        else if (result.RequiresTwoFactor)
+        finally
         {
-            RedirectManager.RedirectTo(
-                "Account/LoginWith2fa",
-                new() { ["returnUrl"] = ReturnUrl, ["rememberMe"] = Input!.RememberMe });
-        }
-        else if (result.IsLockedOut)
-        {
-            Logger.LogWarning("User account locked out.");
-            RedirectManager.RedirectTo("Account/Lockout");
-        }
-        else
-        {
-            errorMessage = "Error: Invalid login attempt.";
+            _busy = false;
         }
     }
 
     private sealed class InputModel
     {
-        [Required]
-        [EmailAddress]
+        [Required, EmailAddress]
         public string Email { get; set; } = "";
 
-        [Required]
-        [DataType(DataType.Password)]
+        [Required, DataType(DataType.Password)]
         public string Password { get; set; } = "";
 
-        [Display(Name = "Remember me?")]
         public bool RememberMe { get; set; }
     }
 }

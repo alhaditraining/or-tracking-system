@@ -19,6 +19,13 @@
 </head>
 
 <body>
+    <MudThemeProvider />
+    <MudPopoverProvider />
+    <MudDialogProvider />
+    <MudSnackbarProvider />
+
+   
+
     @* ✅ Account pages must be SSR only *@
     @if (IsAccountPath())
     {

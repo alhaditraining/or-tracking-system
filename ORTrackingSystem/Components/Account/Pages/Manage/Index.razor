@@ -2,6 +2,7 @@
 
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Identity
+@using ORTrackingSystem.Components.Account.Shared
 @using ORTrackingSystem.Data
 
 @inject UserManager<ApplicationUser> UserManager
@@ -11,11 +12,11 @@
 
 <PageTitle>Profile</PageTitle>
 
-<h3>Profile</h3>
+<h4 class="mb-3">Profile</h4>
 <StatusMessage />
 
 <div class="row">
-    <div class="col-md-6">
+    <div class="col-12 col-md-8 col-lg-6">
         <EditForm Model="Input" FormName="profile" OnValidSubmit="OnValidSubmitAsync" method="post">
             <DataAnnotationsValidator />
             <ValidationSummary class="text-danger" role="alert" />

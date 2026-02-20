@@ -13,20 +13,20 @@ var builder = WebApplication.CreateBuilder(args);
 // Services
 // -------------------------
 
-// Razor Components (Blazor Server interactive)
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-// MudBlazor
-builder.Services.AddMudServices();
+builder.Services.AddMudServices(cfg =>
+{
+    cfg.SnackbarConfiguration.ShowCloseIcon = true;
+    cfg.SnackbarConfiguration.VisibleStateDuration = 3000;
+});
 
-// Authentication state for Blazor
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<IdentityUserAccessor>();
 builder.Services.AddScoped<IdentityRedirectManager>();
 builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
 
-// Cookies auth (Identity)
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultScheme = IdentityConstants.ApplicationScheme;
@@ -34,7 +34,14 @@ builder.Services.AddAuthentication(options =>
 })
 .AddIdentityCookies();
 
-// DB
+// ✅ هنا المهم: خلّي اسم باراميتر الرجوع نفس اللي يظهر عندك (ReturnUrl)
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.LoginPath = "/Account/Login";
+    options.AccessDeniedPath = "/Account/AccessDenied";
+    options.ReturnUrlParameter = "ReturnUrl"; // ✅ حرف كبير
+});
+
 var connectionString =
     builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
@@ -44,7 +51,6 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
-// IdentityCore + Roles + SignInManager + Tokens
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
 {
     options.SignIn.RequireConfirmedAccount = true;
@@ -54,25 +60,23 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
 .AddSignInManager()
 .AddDefaultTokenProviders();
 
-// Email sender (No-op)
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
-// App services
 builder.Services.AddScoped<ORTrackingSystem.Services.ExportService>();
 
-// Authorization policies
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
     options.AddPolicy("ViewerOrAdmin", policy => policy.RequireRole("Admin", "Viewer"));
 });
+//remove when deploying to production
+builder.WebHost.UseUrls("https://localhost:7176");
 
 var app = builder.Build();
 
 // -------------------------
-// Middleware pipeline
+// Middleware
 // -------------------------
-
 if (app.Environment.IsDevelopment())
 {
     app.UseMigrationsEndPoint();
@@ -86,56 +90,35 @@ else
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 
-// ✅ مهم جدًا: Authentication/Authorization قبل Antiforgery و قبل MapRazorComponents
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.UseAntiforgery();
 
 // -------------------------
-// Extra endpoints (SSR-safe)
+// SSR-safe Endpoints
 // -------------------------
-
-// ✅ Logout endpoint (GET) - ثابت ومضمون، بدون 405 وبدون returnUrl مشاكل
 app.MapGet("/logout", async (HttpContext ctx) =>
 {
-    // sign out from both schemes (safe)
     await ctx.SignOutAsync(IdentityConstants.ApplicationScheme);
     await ctx.SignOutAsync(IdentityConstants.ExternalScheme);
-
-    // hard-delete common identity cookie (extra safety)
-    ctx.Response.Cookies.Delete(".AspNetCore.Identity.Application");
-
-    // avoid caching
-    ctx.Response.Headers.CacheControl = "no-store";
-
-    // redirect to login (SSR)
     ctx.Response.Redirect("/Account/Login");
 });
 
-// ✅ Login shortcut (GET) يضمن returnUrl محلي فقط
 app.MapGet("/login", (HttpContext ctx) =>
 {
-    // رجّع للداشبورد بعد الدخول
-    ctx.Response.Redirect("/Account/Login?returnUrl=/reports/dashboard");
+    // ✅ نفس الاسم ReturnUrl حرف كبير
+    ctx.Response.Redirect("/Account/Login?ReturnUrl=/reports/dashboard");
 });
 
-// ✅ Debug ping (اختياري - احذفه بعد ما تتأكد كلشي تمام)
-// app.MapGet("/__ping", () => Results.Text("PING OK"));
-
 // -------------------------
-// Endpoints
+// Blazor + Identity endpoints
 // -------------------------
-
 app.MapRazorComponents<App>()
    .AddInteractiveServerRenderMode();
 
-// Identity endpoints for /Account Razor components
 app.MapAdditionalIdentityEndpoints();
 
-// -------------------------
-// Seed roles/admin
-// -------------------------
+// Seed
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;

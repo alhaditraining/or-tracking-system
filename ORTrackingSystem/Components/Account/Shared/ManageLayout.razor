@@ -1,17 +1,38 @@
 ﻿@inherits LayoutComponentBase
-@layout AccountLayout
+@inject NavigationManager Nav
 
-<h1>Manage your account</h1>
-
-<div>
-    <h2>Change your account settings</h2>
-    <hr />
-    <div class="row">
-        <div class="col-md-3">
-            <ManageNavMenu />
+<div class="container py-4">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <div>
+            <h2 class="mb-0">Account</h2>
+            <small class="text-muted">Manage your profile and security settings</small>
         </div>
-        <div class="col-md-9">
-            @Body
+
+        <!-- رجوع للنظام -->
+        <a class="btn btn-outline-primary"
+           href="/reports/dashboard">
+            ← Back to Dashboard
+        </a>
+    </div>
+
+    <div class="row g-4">
+        <!-- Sidebar -->
+        <div class="col-12 col-lg-3">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h6 class="text-uppercase text-muted mb-3">Settings</h6>
+                    <ManageNavMenu />
+                </div>
+            </div>
+        </div>
+
+        <!-- Content -->
+        <div class="col-12 col-lg-9">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    @Body
+                </div>
+            </div>
         </div>
     </div>
 </div>

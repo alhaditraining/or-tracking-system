@@ -1,8 +1,20 @@
-﻿@inject NavigationManager NavigationManager
+﻿@attribute [ExcludeFromInteractiveRouting]
+@inject NavigationManager NavigationManager
 
 @code {
     protected override void OnInitialized()
     {
-        NavigationManager.NavigateTo($"/Account/Login?returnUrl={Uri.EscapeDataString(NavigationManager.Uri)}", forceLoad: true);
+        var abs = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
+        var pathOnly = abs.AbsolutePath; // بدون query
+
+        if (string.IsNullOrWhiteSpace(pathOnly) ||
+            pathOnly.StartsWith("/Account", StringComparison.OrdinalIgnoreCase))
+        {
+            pathOnly = "/reports/dashboard";
+        }
+
+        NavigationManager.NavigateTo(
+            $"/Account/Login?ReturnUrl={Uri.EscapeDataString(pathOnly)}",
+            forceLoad: true);
     }
 }
