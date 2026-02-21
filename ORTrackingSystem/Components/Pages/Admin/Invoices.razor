@@ -110,27 +110,45 @@
                     }
                 </div>
 
-                <div class="mb-3">
-                    <label class="form-label">Delivery Note (required)</label>
-                    <InputFile OnChange="@(e => HandleFileSelected(e, AttachmentType.DeliveryNote))" class="form-control" accept="image/*,.pdf" />
-                    @if (!string.IsNullOrEmpty(EditingInvoice.DeliveryNoteFileName))
-                    {
-                        <div class="text-success mt-1">
-                            <span class="bi bi-check-circle"></span> @EditingInvoice.DeliveryNoteFileName
-                        </div>
-                    }
-                </div>
+                <MudPaper Class="pa-4 mb-3" Outlined="true">
+                    <MudStack Spacing="2">
+                        <MudText Typo="Typo.h6">Attachments</MudText>
 
-                <div class="mb-3">
-                    <label class="form-label">Invoice Image (required)</label>
-                    <InputFile OnChange="@(e => HandleFileSelected(e, AttachmentType.InvoiceImage))" class="form-control" accept="image/*,.pdf" />
-                    @if (!string.IsNullOrEmpty(EditingInvoice.InvoiceImageFileName))
-                    {
-                        <div class="text-success mt-1">
-                            <span class="bi bi-check-circle"></span> @EditingInvoice.InvoiceImageFileName
+                        @if (IsAttachmentMissing(EditingInvoice, AttachmentType.DeliveryNote) || IsAttachmentMissing(EditingInvoice, AttachmentType.InvoiceImage))
+                        {
+                            <MudAlert Severity="Severity.Warning" Dense="true" Variant="Variant.Filled">
+                                Missing Attachment
+                            </MudAlert>
+                        }
+
+                        <MudList Dense="true" Clickable="false">
+                            <MudListItem Icon="@GetAttachmentStatusIcon(EditingInvoice, AttachmentType.DeliveryNote)">
+                                Delivery Note: @GetAttachmentDisplayName(EditingInvoice, AttachmentType.DeliveryNote)
+                                @if (IsAttachmentMissing(EditingInvoice, AttachmentType.DeliveryNote))
+                                {
+                                    <MudChip Color="Color.Error" Variant="Variant.Filled" Size="Size.Small" Class="ms-2">Missing Attachment</MudChip>
+                                }
+                            </MudListItem>
+                            <MudListItem Icon="@GetAttachmentStatusIcon(EditingInvoice, AttachmentType.InvoiceImage)">
+                                Invoice Image: @GetAttachmentDisplayName(EditingInvoice, AttachmentType.InvoiceImage)
+                                @if (IsAttachmentMissing(EditingInvoice, AttachmentType.InvoiceImage))
+                                {
+                                    <MudChip Color="Color.Error" Variant="Variant.Filled" Size="Size.Small" Class="ms-2">Missing Attachment</MudChip>
+                                }
+                            </MudListItem>
+                        </MudList>
+
+                        <div>
+                            <label class="form-label">Delivery Note (required)</label>
+                            <InputFile OnChange="@(e => HandleFileSelected(e, AttachmentType.DeliveryNote))" class="form-control" accept="image/*,.pdf" />
                         </div>
-                    }
-                </div>
+
+                        <div>
+                            <label class="form-label">Invoice Image (required)</label>
+                            <InputFile OnChange="@(e => HandleFileSelected(e, AttachmentType.InvoiceImage))" class="form-control" accept="image/*,.pdf" />
+                        </div>
+                    </MudStack>
+                </MudPaper>
                 
                 <div class="d-flex gap-2">
                     <button type="submit" class="btn btn-success" disabled="@(EditingInvoice.ORId == 0)">Save</button>
@@ -156,6 +174,7 @@
             <th>OR</th>
             <th>Amount</th>
             <th>Is Paid</th>
+            <th>Attachments</th>
             <th>Paid Date</th>
             <th>Created Date</th>
             <th>Actions</th>
@@ -177,6 +196,16 @@
                     else
                     {
                         <span class="badge bg-secondary">No</span>
+                    }
+                </td>
+                <td>
+                    @if (HasMissingRequiredAttachments(invoice.InvoiceAttachments))
+                    {
+                        <span class="badge bg-danger">Missing Attachment</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-success">Complete</span>
                     }
                 </td>
                 <td>@(invoice.PaidDate?.ToString("yyyy-MM-dd") ?? "-")</td>
@@ -353,6 +382,37 @@
         }
 
         await Task.CompletedTask;
+    }
+
+    private static bool HasMissingRequiredAttachments(IEnumerable<InvoiceAttachment> attachments)
+    {
+        var types = attachments.Select(a => a.AttachmentType).Distinct().ToHashSet();
+        return !types.Contains(AttachmentType.DeliveryNote) || !types.Contains(AttachmentType.InvoiceImage);
+    }
+
+    private static bool IsAttachmentMissing(InvoiceFormModel form, AttachmentType attachmentType)
+    {
+        return attachmentType switch
+        {
+            AttachmentType.DeliveryNote => form.DeliveryNoteFile == null && string.IsNullOrWhiteSpace(form.DeliveryNoteFileName),
+            AttachmentType.InvoiceImage => form.InvoiceImageFile == null && string.IsNullOrWhiteSpace(form.InvoiceImageFileName),
+            _ => true
+        };
+    }
+
+    private static string GetAttachmentDisplayName(InvoiceFormModel form, AttachmentType attachmentType)
+    {
+        return attachmentType switch
+        {
+            AttachmentType.DeliveryNote => string.IsNullOrWhiteSpace(form.DeliveryNoteFileName) ? "Not uploaded" : form.DeliveryNoteFileName,
+            AttachmentType.InvoiceImage => string.IsNullOrWhiteSpace(form.InvoiceImageFileName) ? "Not uploaded" : form.InvoiceImageFileName,
+            _ => "Not uploaded"
+        };
+    }
+
+    private static string GetAttachmentStatusIcon(InvoiceFormModel form, AttachmentType attachmentType)
+    {
+        return IsAttachmentMissing(form, attachmentType) ? Icons.Material.Filled.Cancel : Icons.Material.Filled.CheckCircle;
     }
 
     private async Task SaveInvoice()
