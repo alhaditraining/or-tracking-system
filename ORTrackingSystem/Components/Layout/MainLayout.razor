@@ -2,10 +2,7 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @inject NavigationManager Nav
 
-@* <MudThemeProvider />
-<MudPopoverProvider />
-<MudDialogProvider />
-<MudSnackbarProvider /> *@
+<MudThemeProvider @bind-IsDarkMode="@_isDarkMode" Theme="@_currentTheme" />
 
 <MudLayout>
 
@@ -20,6 +17,11 @@
         </MudNavLink>
 
         <MudSpacer />
+
+        <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
+                       Color="Color.Inherit"
+                       OnClick="@(() => _isDarkMode = !_isDarkMode)"
+                       AriaLabel="Toggle dark and light mode" />
 
         <AuthorizeView>
             <Authorized Context="auth">
@@ -56,6 +58,19 @@
 
 @code {
     private bool _drawerOpen = true;
+    private bool _isDarkMode = true;
+
+    private readonly MudTheme _currentTheme = new()
+    {
+        PaletteLight = new PaletteLight
+        {
+            Primary = "#594AE2"
+        },
+        PaletteDark = new PaletteDark
+        {
+            Primary = "#594AE2"
+        }
+    };
 
     private void ToggleDrawer()
         => _drawerOpen = !_drawerOpen;
