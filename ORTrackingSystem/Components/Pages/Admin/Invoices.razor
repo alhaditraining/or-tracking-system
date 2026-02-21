@@ -6,6 +6,8 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Forms
 @using System.ComponentModel.DataAnnotations
+@using MudBlazor
+
 @attribute [Authorize(Policy = "AdminOnly")]
 @rendermode InteractiveServer
 
@@ -17,207 +19,180 @@
 
 <PageTitle>Invoices</PageTitle>
 
-<h1>Invoices</h1>
+<MudText Typo="Typo.h4" Class="mb-4">Invoices Management</MudText>
 
-<div class="mb-3">
-    <button class="btn btn-primary" @onclick="ShowCreateForm">
-        <span class="bi bi-plus-circle"></span> Create New Invoice
-    </button>
-</div>
-
-@if (ShowForm && EditingInvoice != null)
-{
-    <div class="card mb-4">
-        <div class="card-header">
-            <h3>@(EditingInvoice.Id > 0 ? "Edit" : "Create") Invoice</h3>
-        </div>
-        <div class="card-body">
-            <EditForm Model="EditingInvoice" OnValidSubmit="SaveInvoice" FormName="invoiceForm">
-                <DataAnnotationsValidator />
-                <ValidationSummary class="text-danger" />
-                
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">OR</label>
-                        <InputSelect @bind-Value="EditingInvoice.ORId" class="form-control" disabled="@(EditingInvoice.Id > 0)" @bind-Value:after="OnORChanged">
-                            <option value="0">-- Select OR --</option>
-                            @foreach (var or in ORsList)
-                            {
-                                <option value="@or.Id">@or.ORNumber - @or.ContractContext.ContractName</option>
-                            }
-                        </InputSelect>
-                        @if (EditingInvoice.ORId == 0)
-                        {
-                            <div class="text-danger">OR is required</div>
-                        }
-                    </div>
-                    
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Invoice Number</label>
-                        <InputText @bind-Value="EditingInvoice.InvoiceNumber" class="form-control" />
-                        <ValidationMessage For="() => EditingInvoice!.InvoiceNumber" />
-                    </div>
-                </div>
-                
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Amount</label>
-                        <InputNumber @bind-Value="EditingInvoice.Amount" class="form-control" step="0.01" />
-                        <ValidationMessage For="() => EditingInvoice!.Amount" />
-                    </div>
-                    
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">
-                            <InputCheckbox @bind-Value="EditingInvoice.IsPaid" />
-                            Is Paid
-                        </label>
-                    </div>
-                </div>
-                
-                @if (EditingInvoice.IsPaid)
-                {
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Paid Date</label>
-                            <InputDate @bind-Value="EditingInvoice.PaidDate" class="form-control" />
-                            <ValidationMessage For="() => EditingInvoice!.PaidDate" />
-                        </div>
-                    </div>
-                }
-                
-                <div class="mb-3">
-                    <label class="form-label">Link LM Requests (optional)</label>
-                    @if (AvailableRequests.Count > 0)
-                    {
-                        <div class="border p-3" style="max-height: 200px; overflow-y: auto;">
-                            @foreach (var request in AvailableRequests)
-                            {
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" 
-                                           checked="@EditingInvoice.SelectedRequestIds.Contains(request.Id)"
-                                           @onchange="@(e => ToggleRequest(request.Id, (bool)e.Value!))" 
-                                           id="request_@request.Id" />
-                                    <label class="form-check-label" for="request_@request.Id">
-                                        @request.RequestNumber - @request.Amount.ToString("C") - @(request.Description ?? "N/A")
-                                    </label>
-                                </div>
-                            }
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="alert alert-info">No LM Requests available for the selected OR.</div>
-                    }
-                </div>
-
-                <MudPaper Class="pa-4 mb-3" Outlined="true">
-                    <MudStack Spacing="2">
-                        <MudText Typo="Typo.h6">Attachments</MudText>
-
-                        @if (IsAttachmentMissing(EditingInvoice, AttachmentType.DeliveryNote) || IsAttachmentMissing(EditingInvoice, AttachmentType.InvoiceImage))
-                        {
-                            <MudAlert Severity="Severity.Warning" Dense="true" Variant="Variant.Filled">
-                                Missing Attachment
-                            </MudAlert>
-                        }
-
-                        <MudList Dense="true" Clickable="false">
-                            <MudListItem Icon="@GetAttachmentStatusIcon(EditingInvoice, AttachmentType.DeliveryNote)">
-                                Delivery Note: @GetAttachmentDisplayName(EditingInvoice, AttachmentType.DeliveryNote)
-                                @if (IsAttachmentMissing(EditingInvoice, AttachmentType.DeliveryNote))
-                                {
-                                    <MudChip Color="Color.Error" Variant="Variant.Filled" Size="Size.Small" Class="ms-2">Missing Attachment</MudChip>
-                                }
-                            </MudListItem>
-                            <MudListItem Icon="@GetAttachmentStatusIcon(EditingInvoice, AttachmentType.InvoiceImage)">
-                                Invoice Image: @GetAttachmentDisplayName(EditingInvoice, AttachmentType.InvoiceImage)
-                                @if (IsAttachmentMissing(EditingInvoice, AttachmentType.InvoiceImage))
-                                {
-                                    <MudChip Color="Color.Error" Variant="Variant.Filled" Size="Size.Small" Class="ms-2">Missing Attachment</MudChip>
-                                }
-                            </MudListItem>
-                        </MudList>
-
-                        <div>
-                            <label class="form-label">Delivery Note (required)</label>
-                            <InputFile OnChange="@(e => HandleFileSelected(e, AttachmentType.DeliveryNote))" class="form-control" accept="image/*,.pdf" />
-                        </div>
-
-                        <div>
-                            <label class="form-label">Invoice Image (required)</label>
-                            <InputFile OnChange="@(e => HandleFileSelected(e, AttachmentType.InvoiceImage))" class="form-control" accept="image/*,.pdf" />
-                        </div>
-                    </MudStack>
-                </MudPaper>
-                
-                <div class="d-flex gap-2">
-                    <button type="submit" class="btn btn-success" disabled="@(EditingInvoice.ORId == 0)">Save</button>
-                    <button type="button" class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
-                </div>
-            </EditForm>
-        </div>
-    </div>
-}
+<MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="ShowCreateForm" Class="mb-4">
+    Create New Invoice
+</MudButton>
 
 @if (!string.IsNullOrEmpty(StatusMessage))
 {
-    <div class="alert @StatusClass" role="alert">
+    <MudAlert Severity="@(StatusClass == "alert-danger" ? Severity.Error : StatusClass == "alert-success" ? Severity.Success : Severity.Info)" Class="mb-4">
         @StatusMessage
-    </div>
+    </MudAlert>
 }
 
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>ID</th>
-            <th>Invoice Number</th>
-            <th>OR</th>
-            <th>Amount</th>
-            <th>Is Paid</th>
-            <th>Attachments</th>
-            <th>Paid Date</th>
-            <th>Created Date</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var invoice in InvoicesList)
-        {
-            <tr>
-                <td>@invoice.Id</td>
-                <td>@invoice.InvoiceNumber</td>
-                <td>@invoice.OR.ORNumber</td>
-                <td>@invoice.Amount.ToString("C")</td>
-                <td>
-                    @if (invoice.IsPaid ?? false)
+@if (ShowForm && EditingInvoice != null)
+{
+    <MudCard Elevation="3" Class="mb-6">
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h6">@(EditingInvoice.Id > 0 ? "Edit" : "Create") Invoice</MudText>
+            </CardHeaderContent>
+        </MudCardHeader>
+        <MudCardContent>
+            <EditForm Model="EditingInvoice" OnValidSubmit="SaveInvoice" FormName="invoiceForm">
+                <DataAnnotationsValidator />
+
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="int" Label="Order Request (OR)" @bind-Value="EditingInvoice.ORId" @bind-Value:after="OnORChanged" Disabled="@(EditingInvoice.Id > 0)" Variant="Variant.Outlined" Required="true" RequiredError="OR is required">
+                            <MudSelectItem T="int" Value="0">-- Select OR --</MudSelectItem>
+                            @foreach (var or in ORsList)
+                            {
+                                <MudSelectItem T="int" Value="@or.Id">@or.ORNumber - @or.ContractContext.ContractName</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="EditingInvoice.InvoiceNumber" Label="Invoice Number" Variant="Variant.Outlined" For="@(() => EditingInvoice!.InvoiceNumber)" />
+                    </MudItem>
+
+                    <MudItem xs="12" md="6">
+                        <MudNumericField @bind-Value="EditingInvoice.Amount" Label="Amount" Variant="Variant.Outlined" Step="0.01M" For="@(() => EditingInvoice!.Amount)" />
+                    </MudItem>
+
+                    <MudItem xs="12" md="6" Class="d-flex align-center">
+                        <MudCheckBox @bind-Value="EditingInvoice.IsPaid" Label="Is Paid" Color="Color.Success" />
+                    </MudItem>
+
+                    @if (EditingInvoice.IsPaid)
                     {
-                        <span class="badge bg-success">Yes</span>
+                        <MudItem xs="12" md="6">
+                            <MudDatePicker @bind-Date="EditingInvoice.PaidDate" Label="Paid Date" Variant="Variant.Outlined" For="@(() => EditingInvoice!.PaidDate)" />
+                        </MudItem>
                     }
-                    else
-                    {
-                        <span class="badge bg-secondary">No</span>
-                    }
-                </td>
-                <td>
-                    @if (HasMissingRequiredAttachments(invoice.InvoiceAttachments))
-                    {
-                        <span class="badge bg-danger">Missing Attachment</span>
-                    }
-                    else
-                    {
-                        <span class="badge bg-success">Complete</span>
-                    }
-                </td>
-                <td>@(invoice.PaidDate?.ToString("yyyy-MM-dd") ?? "-")</td>
-                <td>@invoice.CreatedDate.ToString("yyyy-MM-dd")</td>
-                <td>
-                    <button class="btn btn-sm btn-primary me-1" @onclick="() => EditInvoice(invoice)">Edit</button>
-                    <button class="btn btn-sm btn-info" @onclick="() => ViewDetails(invoice.Id)">Details</button>
-                </td>
-            </tr>
-        }
-    </tbody>
-</table>
+
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.subtitle1" Class="mb-2">Link LM Requests (optional)</MudText>
+                        @if (AvailableRequests.Count > 0)
+                        {
+                            <MudPaper Outlined="true" Class="pa-4" Style="max-height: 200px; overflow-y: auto;">
+                                @foreach (var request in AvailableRequests)
+                                {
+                                    <MudCheckBox T="bool"
+                                                 Value="@EditingInvoice.SelectedRequestIds.Contains(request.Id)"
+                                                 ValueChanged="@(e => ToggleRequest(request.Id, e))"
+                                                 Label="@($"{request.RequestNumber} - {request.Amount:C} - {(request.Description ?? "N/A")}")"
+                                                 Color="Color.Primary" />
+                                }
+                            </MudPaper>
+                        }
+                        else
+                        {
+                            <MudAlert Severity="Severity.Info" Dense="true">No LM Requests available for the selected OR.</MudAlert>
+                        }
+                    </MudItem>
+
+                    <MudItem xs="12">
+                        <MudPaper Class="pa-4 mt-2" Outlined="true">
+                            <MudStack Spacing="2">
+                                <MudText Typo="Typo.h6">Attachments</MudText>
+
+                                @if (IsAttachmentMissing(EditingInvoice, AttachmentType.DeliveryNote) || IsAttachmentMissing(EditingInvoice, AttachmentType.InvoiceImage))
+                                {
+                                    <MudAlert Severity="Severity.Warning" Dense="true" Variant="Variant.Filled">Missing Attachment</MudAlert>
+                                }
+
+                                <MudList T="string" Dense="true">
+                                    <MudListItem T="string" Icon="@GetAttachmentStatusIcon(EditingInvoice, AttachmentType.DeliveryNote)">
+                                        Delivery Note: @GetAttachmentDisplayName(EditingInvoice, AttachmentType.DeliveryNote)
+                                        @if (IsAttachmentMissing(EditingInvoice, AttachmentType.DeliveryNote))
+                                        {
+                                            <MudChip T="string" Color="Color.Error" Variant="Variant.Filled" Size="Size.Small" Class="ms-2">Missing</MudChip>
+                                        }
+                                    </MudListItem>
+                                    <MudListItem T="string" Icon="@GetAttachmentStatusIcon(EditingInvoice, AttachmentType.InvoiceImage)">
+                                        Invoice Image: @GetAttachmentDisplayName(EditingInvoice, AttachmentType.InvoiceImage)
+                                        @if (IsAttachmentMissing(EditingInvoice, AttachmentType.InvoiceImage))
+                                        {
+                                            <MudChip T="string" Color="Color.Error" Variant="Variant.Filled" Size="Size.Small" Class="ms-2">Missing</MudChip>
+                                        }
+                                    </MudListItem>
+                                </MudList>
+
+                                <div>
+                                    <MudText Typo="Typo.caption">Delivery Note (required)</MudText>
+                                    <InputFile OnChange="@(e => HandleFileSelected(e, AttachmentType.DeliveryNote))" class="form-control" accept="image/*,.pdf" />
+                                </div>
+
+                                <div>
+                                    <MudText Typo="Typo.caption">Invoice Image (required)</MudText>
+                                    <InputFile OnChange="@(e => HandleFileSelected(e, AttachmentType.InvoiceImage))" class="form-control" accept="image/*,.pdf" />
+                                </div>
+                            </MudStack>
+                        </MudPaper>
+                    </MudItem>
+                </MudGrid>
+
+                <MudCardActions Class="mt-4 pb-0 pl-0">
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Success" Disabled="@(EditingInvoice.ORId == 0)" Class="me-2">Save</MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="CancelEdit">Cancel</MudButton>
+                </MudCardActions>
+            </EditForm>
+        </MudCardContent>
+    </MudCard>
+}
+
+<MudTable Items="@InvoicesList" Hover="true" Striped="true" Elevation="3" Dense="true">
+    <HeaderContent>
+        <MudTh>ID</MudTh>
+        <MudTh>Invoice Number</MudTh>
+        <MudTh>OR</MudTh>
+        <MudTh>Amount</MudTh>
+        <MudTh>Is Paid</MudTh>
+        <MudTh>Attachments</MudTh>
+        <MudTh>Paid Date</MudTh>
+        <MudTh>Created Date</MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="ID">@context.Id</MudTd>
+        <MudTd DataLabel="Invoice Number">@context.InvoiceNumber</MudTd>
+        <MudTd DataLabel="OR">@context.OR?.ORNumber</MudTd>
+        <MudTd DataLabel="Amount">@context.Amount.ToString("C")</MudTd>
+        <MudTd DataLabel="Is Paid">
+            @if (context.IsPaid ?? false)
+            {
+                <MudChip T="string" Color="Color.Success" Size="Size.Small">Yes</MudChip>
+            }
+            else
+            {
+                <MudChip T="string" Color="Color.Default" Size="Size.Small">No</MudChip>
+            }
+        </MudTd>
+        <MudTd DataLabel="Attachments">
+            @if (HasMissingRequiredAttachments(context.InvoiceAttachments))
+            {
+                <MudChip T="string" Color="Color.Error" Size="Size.Small">Missing</MudChip>
+            }
+            else
+            {
+                <MudChip T="string" Color="Color.Success" Size="Size.Small">Complete</MudChip>
+            }
+        </MudTd>
+        <MudTd DataLabel="Paid Date">@(context.PaidDate?.ToString("yyyy-MM-dd") ?? "-")</MudTd>
+        <MudTd DataLabel="Created Date">@context.CreatedDate.ToString("yyyy-MM-dd")</MudTd>
+        <MudTd DataLabel="Actions">
+            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="() => EditInvoice(context)" />
+            <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Info" Size="Size.Small" OnClick="() => ViewDetails(context.Id)" />
+        </MudTd>
+    </RowTemplate>
+    <PagerContent>
+        <MudTablePager />
+    </PagerContent>
+</MudTable>
 
 @code {
     private List<Invoice> InvoicesList = new();
@@ -234,7 +209,7 @@
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
         CurrentUserId = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        
+
         await LoadORs();
         await LoadInvoices();
     }
@@ -295,7 +270,7 @@
     private async Task EditInvoice(Invoice invoice)
     {
         await LoadAvailableRequests(invoice.ORId);
-        
+
         EditingInvoice = new InvoiceFormModel
         {
             Id = invoice.Id,
@@ -307,16 +282,15 @@
             SelectedRequestIds = invoice.InvoiceRequestLinks.Select(irl => irl.RequestId).ToHashSet()
         };
 
-        // Load existing attachments
         var deliveryNote = invoice.InvoiceAttachments.FirstOrDefault(a => a.AttachmentType == AttachmentType.DeliveryNote);
         var invoiceImage = invoice.InvoiceAttachments.FirstOrDefault(a => a.AttachmentType == AttachmentType.InvoiceImage);
-        
+
         if (deliveryNote != null)
         {
             EditingInvoice.DeliveryNoteFileName = deliveryNote.FileName;
             EditingInvoice.ExistingDeliveryNoteId = deliveryNote.Id;
         }
-        
+
         if (invoiceImage != null)
         {
             EditingInvoice.InvoiceImageFileName = invoiceImage.FileName;
@@ -361,7 +335,6 @@
         var file = e.File;
         if (file == null) return;
 
-        // Validate file size (max 10MB)
         const long maxFileSize = 10 * 1024 * 1024;
         if (file.Size > maxFileSize)
         {
@@ -418,7 +391,7 @@
     private async Task SaveInvoice()
     {
         if (EditingInvoice == null) return;
-        
+
         if (EditingInvoice.ORId == 0)
         {
             StatusMessage = "Please select an OR.";
@@ -426,7 +399,6 @@
             return;
         }
 
-        // Validate PaidDate when IsPaid is true
         if (EditingInvoice.IsPaid && EditingInvoice.PaidDate == null)
         {
             StatusMessage = "Paid Date is required when the invoice is marked as paid.";
@@ -434,7 +406,6 @@
             return;
         }
 
-        // For new invoices, validate both attachments are provided
         if (EditingInvoice.Id == 0)
         {
             if (EditingInvoice.DeliveryNoteFile == null)
@@ -456,7 +427,6 @@
         {
             if (EditingInvoice.Id == 0)
             {
-                // Create new
                 var newInvoice = new Invoice
                 {
                     ORId = EditingInvoice.ORId,
@@ -470,11 +440,9 @@
                 DbContext.Invoices.Add(newInvoice);
                 await DbContext.SaveChangesAsync();
 
-                // Save attachments
                 await SaveAttachment(newInvoice.Id, EditingInvoice.DeliveryNoteFile!, AttachmentType.DeliveryNote);
                 await SaveAttachment(newInvoice.Id, EditingInvoice.InvoiceImageFile!, AttachmentType.InvoiceImage);
 
-                // Link requests
                 foreach (var requestId in EditingInvoice.SelectedRequestIds)
                 {
                     DbContext.InvoiceRequestLinks.Add(new InvoiceRequestLink
@@ -487,11 +455,10 @@
             }
             else
             {
-                // Update existing
                 var existingInvoice = await DbContext.Invoices
                     .Include(i => i.InvoiceRequestLinks)
                     .FirstOrDefaultAsync(i => i.Id == EditingInvoice.Id);
-                    
+
                 if (existingInvoice != null)
                 {
                     existingInvoice.InvoiceNumber = EditingInvoice.InvoiceNumber;
@@ -499,10 +466,8 @@
                     existingInvoice.IsPaid = EditingInvoice.IsPaid;
                     existingInvoice.PaidDate = EditingInvoice.IsPaid ? EditingInvoice.PaidDate : null;
 
-                    // Update attachments if new files provided
                     if (EditingInvoice.DeliveryNoteFile != null)
                     {
-                        // Delete old attachment if exists
                         if (EditingInvoice.ExistingDeliveryNoteId > 0)
                         {
                             var oldAttachment = await DbContext.InvoiceAttachments.FindAsync(EditingInvoice.ExistingDeliveryNoteId);
@@ -517,7 +482,6 @@
 
                     if (EditingInvoice.InvoiceImageFile != null)
                     {
-                        // Delete old attachment if exists
                         if (EditingInvoice.ExistingInvoiceImageId > 0)
                         {
                             var oldAttachment = await DbContext.InvoiceAttachments.FindAsync(EditingInvoice.ExistingInvoiceImageId);
@@ -530,12 +494,11 @@
                         await SaveAttachment(existingInvoice.Id, EditingInvoice.InvoiceImageFile, AttachmentType.InvoiceImage);
                     }
 
-                    // Update request links - properly remove old links
                     var existingLinks = await DbContext.InvoiceRequestLinks
                         .Where(irl => irl.InvoiceId == existingInvoice.Id)
                         .ToListAsync();
                     DbContext.InvoiceRequestLinks.RemoveRange(existingLinks);
-                    
+
                     foreach (var requestId in EditingInvoice.SelectedRequestIds)
                     {
                         DbContext.InvoiceRequestLinks.Add(new InvoiceRequestLink
@@ -548,12 +511,10 @@
                     await DbContext.SaveChangesAsync();
                 }
             }
-            
-            StatusMessage = EditingInvoice.Id == 0 
-                ? "Invoice created successfully."
-                : "Invoice updated successfully.";
+
+            StatusMessage = EditingInvoice.Id == 0 ? "Invoice created successfully." : "Invoice updated successfully.";
             StatusClass = "alert-success";
-            
+
             ShowForm = false;
             EditingInvoice = null;
             await LoadInvoices();
@@ -579,30 +540,25 @@
 
     private async Task SaveAttachment(int invoiceId, IBrowserFile file, AttachmentType attachmentType)
     {
-        // Validate file extension against allowlist
         var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png", ".gif" };
         var extension = Path.GetExtension(file.Name).ToLowerInvariant();
-        
+
         if (string.IsNullOrEmpty(extension) || !allowedExtensions.Contains(extension))
         {
             throw new InvalidOperationException($"File type '{extension}' is not allowed. Allowed types: {string.Join(", ", allowedExtensions)}");
         }
 
-        // Create uploads directory if it doesn't exist
         var uploadsPath = Path.Combine(Environment.WebRootPath, "uploads");
         Directory.CreateDirectory(uploadsPath);
 
-        // Generate safe random filename with validated extension
         var randomFileName = $"{Guid.NewGuid()}{extension}";
         var filePath = Path.Combine(uploadsPath, randomFileName);
 
-        // Save file to disk
         using (var stream = new FileStream(filePath, FileMode.Create))
         {
             await file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024).CopyToAsync(stream);
         }
 
-        // Save attachment record to database
         var attachment = new InvoiceAttachment
         {
             InvoiceId = invoiceId,
@@ -631,7 +587,6 @@
         }
         catch (Exception ex)
         {
-            // Log error but don't fail the operation
             Logger.LogError(ex, "Failed to delete physical file at path: {FilePath}", filePath);
         }
     }
